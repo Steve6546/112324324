@@ -8,9 +8,10 @@ interface ProjectDashboardProps {
   onProjectClick: (project: Project) => void;
   onDeleteProject: (id: string) => void;
   onRenameProject: (id: string, newTitle: string) => void;
+  onStarProject: (id: string) => void;
 }
 
-const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projects, onProjectClick, onDeleteProject, onRenameProject }) => {
+const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projects, onProjectClick, onDeleteProject, onRenameProject, onStarProject }) => {
   const [activeTab, setActiveTab] = useState<Tab>(Tab.RECENTLY_VIEWED);
 
   const filteredProjects = useMemo(() => {
@@ -30,7 +31,7 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projects, onProject
 
   return (
     <div className="w-full bg-[#09090b] min-h-[60vh] rounded-t-[32px] border-t border-white/10 shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.5)] p-6 md:p-10 animate-slide-up relative z-10 transition-all duration-500">
-      
+
       {/* Header & Tabs */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
         <div className="flex items-center gap-1 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
@@ -38,11 +39,10 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projects, onProject
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
-                activeTab === tab
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${activeTab === tab
                   ? 'bg-[#27272a] text-white border border-white/10'
                   : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
-              }`}
+                }`}
             >
               {tab}
             </button>
@@ -55,12 +55,13 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projects, onProject
       {filteredProjects.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fade-in">
           {filteredProjects.map((project) => (
-            <ProjectCard 
-                key={project.id} 
-                project={project} 
-                onClick={onProjectClick}
-                onDelete={onDeleteProject}
-                onRename={onRenameProject}
+            <ProjectCard
+              key={project.id}
+              project={project}
+              onClick={onProjectClick}
+              onDelete={onDeleteProject}
+              onRename={onRenameProject}
+              onStar={onStarProject}
             />
           ))}
         </div>
@@ -68,7 +69,7 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projects, onProject
         <div className="flex flex-col items-center justify-center py-20 text-gray-500 animate-fade-in border-2 border-dashed border-white/5 rounded-2xl">
           <p>No projects found in this view.</p>
           {activeTab === Tab.MY_PROJECTS && (
-              <p className="text-sm mt-2 text-gray-600">Create a new project above to get started!</p>
+            <p className="text-sm mt-2 text-gray-600">Create a new project above to get started!</p>
           )}
         </div>
       )}

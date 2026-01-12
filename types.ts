@@ -7,8 +7,30 @@ export interface Project {
   authorName: string;
   authorAvatar: string;
   category: 'mine' | 'shared' | 'template';
-  code?: string; // The generated HTML code for the project
+
+  // Legacy: Single file HTML storage
+  code?: string;
+
+  // Real File System Integration
+  files?: FileNode[];
+
   chatHistory?: ChatMessage[];
+  isStarred?: boolean;
+}
+
+export type FileType = 'file' | 'folder';
+
+export interface FileNode {
+  id: string;
+  projectId: string;
+  name: string;      // e.g. "App.tsx"
+  path: string;      // e.g. "/src/App.tsx"
+  type: FileType;
+  content: string;   // Content of the file
+  language: string;  // e.g. "typescript", "css"
+  parentId?: string; // For nested folders
+  createdAt: number;
+  updatedAt: number;
 }
 
 export enum Tab {
