@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from './utils';
-import { ProgressiveEnhancementProvider } from '../src/contexts/ProgressiveEnhancementContext';
+import { ProgressiveEnhancementProvider } from '../contexts/ProgressiveEnhancementContext';
 import InputSection from '../../components/InputSection';
 import { mockDeviceCapabilities } from './advanced-test-utils';
 
@@ -215,7 +215,7 @@ describe('Progressive Enhancement', () => {
       mockDeviceCapabilities.speechSupported();
 
       // Mock voice API failure
-      const originalSpeechRecognition = window.webkitSpeechRecognition;
+      const originalSpeechRecognition = (window as any).webkitSpeechRecognition;
       delete (window as any).webkitSpeechRecognition;
 
       render(

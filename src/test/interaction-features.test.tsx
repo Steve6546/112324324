@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from './utils';
-import { ProgressiveEnhancementProvider } from '../src/contexts/ProgressiveEnhancementContext';
+import { ProgressiveEnhancementProvider } from '../contexts/ProgressiveEnhancementContext';
 import InputSection from '../../components/InputSection';
 import { mockDeviceCapabilities, createMockLocalStorage } from './advanced-test-utils';
 

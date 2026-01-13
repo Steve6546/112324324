@@ -157,9 +157,9 @@ export const useDeviceCapabilities = () => {
 
         // Browser capabilities
         supportsWebGL: detectWebGLSupport(),
-        supportsWebRTC: !!(window.RTCPeerConnection || window.webkitRTCPeerConnection),
+        supportsWebRTC: !!(window.RTCPeerConnection || (window as any).webkitRTCPeerConnection),
         supportsServiceWorker: 'serviceWorker' in navigator,
-        supportsIndexedDB: !!(window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB),
+        supportsIndexedDB: !!(window.indexedDB || (window as any).webkitIndexedDB || (window as any).mozIndexedDB),
         supportsWebAssembly: typeof WebAssembly === 'object' && typeof WebAssembly.instantiate === 'function',
       };
 

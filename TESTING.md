@@ -129,13 +129,6 @@ e2e/                            # E2E tests
 
 scripts/                       # Test scripts
 └── check-coverage.js         # Coverage validation
-
-e2e/                           # E2E tests
-├── project-creation.spec.ts   # Project creation tests
-└── editor.spec.ts            # Editor functionality tests
-
-scripts/                      # Test scripts
-└── check-coverage.js         # Coverage validation
 ```
 
 ## 🛠️ Testing Utilities
@@ -445,7 +438,7 @@ Coverage reports are generated in:
 
 ## 🔄 Migration from Manual Tests
 
-The project previously relied on manual tests in `TESTS.md`. Now we have:
+The project previously relied on manual tests. Now we have automated equivalents:
 
 | Manual Test | Automated Equivalent |
 |-------------|---------------------|

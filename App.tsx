@@ -68,12 +68,14 @@ function App() {
         localStorage.setItem('lovable_projects', JSON.stringify(projects));
     }, [projects]);
 
-    const handleSearch = async (prompt: string, imageBase64?: string, isRefinement = false) => {
+    const handleSearch = async (prompt: string, imageBase64?: string, isRefinement = false, selectedTheme?: string | null) => {
         setIsGenerating(true);
         if (!isRefinement) {
             setShowModal(true);
             setAiResponse("");
             setOriginalPrompt(prompt);
+            // Save selected theme for project creation
+            setSelectedTheme(selectedTheme || null);
         }
 
         // If refining, append to history (simplified context)
@@ -122,7 +124,7 @@ function App() {
 
         try {
             // Generate Code Streaming
-            const stream = streamAppCode(aiResponse);
+            const stream = streamAppCode(aiResponse, selectedTheme || undefined);
 
             for await (const chunk of stream) {
                 code += chunk;
@@ -318,7 +320,7 @@ function App() {
                 {/* Main Content */}
                 <main className="flex-grow flex flex-col items-center justify-center pt-4 sm:pt-6 pb-24 sm:pb-20">
                     <InputSection
-                        onSubmit={(p, img) => handleSearch(p, img)}
+                        onSubmit={(p, img, theme) => handleSearch(p, img, false, theme)}
                         isGenerating={isGenerating}
                         selectedTheme={selectedTheme}
                         onThemeChange={setSelectedTheme}

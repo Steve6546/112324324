@@ -48,9 +48,13 @@ describe('App Integration Tests', () => {
     // Mock fast responses for speed
     const { streamIdeaResponse, streamAppCode } = await import('../../services/gemini');
 
-    // Mock as resolved promises for speed
-    vi.mocked(streamIdeaResponse).mockResolvedValue('## Todo App Plan\n\n- Task list\n- Add/delete tasks');
-    vi.mocked(streamAppCode).mockResolvedValue('<html><body><h1>Todo App</h1></body></html>');
+    // Mock as async generators for proper typing
+    vi.mocked(streamIdeaResponse).mockImplementation(async function* () {
+      yield '## Todo App Plan\n\n- Task list\n- Add/delete tasks';
+    });
+    vi.mocked(streamAppCode).mockImplementation(async function* () {
+      yield '<html><body><h1>Todo App</h1></body></html>';
+    });
 
     render(<App />);
 

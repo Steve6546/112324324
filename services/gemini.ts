@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { THEMES, getThemeById } from '../components/InputSection';
+import { THEMES, getThemeById } from '../utils/themes';
 
 // --- Official Google GenAI Model IDs ---
 // Reference: https://ai.google.dev/gemini-api/docs/models

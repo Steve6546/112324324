@@ -96,6 +96,8 @@ export const useProjectFileSystem = (project: Project) => {
                 const dbFiles = await db.getProjectFiles(project.id);
 
                 if (dbFiles && dbFiles.length > 0) {
+                    // Debug: Found existing files in database
+                    console.log('[DEBUG] Found existing files in database:', { projectId: project.id, dbFilesCount: dbFiles.length, alreadyMigrated, firstFile: dbFiles[0] });
                     // Files exist in DB - use them
                     setFiles(dbFiles);
                     if (!activeFileId) setActiveFileId(dbFiles[0].id);
@@ -103,24 +105,43 @@ export const useProjectFileSystem = (project: Project) => {
                     // Mark as migrated if not already (for existing projects loaded from DB)
                     if (!alreadyMigrated) {
                         await db.setMigrated(project.id);
+                        // Debug: Marked project as migrated
+                        console.log('[DEBUG] Marked project as migrated:', { projectId: project.id });
                     }
+// Debug: Starting migration check
+console.log('[DEBUG] Starting migration check:', { projectId: project.id, alreadyMigrated, dbFilesCount: dbFiles?.length || 0, hasCode: !!project.code });
+
                 } else if (!alreadyMigrated && project.code) {
                     // No files in DB AND not migrated AND has legacy code -> Migrate
                     console.log(`[Migration] Migrating project ${project.id}...`);
 
+// Debug: Starting migration process
+console.log('[DEBUG] Starting migration process:', { projectId: project.id, hasCode: !!project.code });
+
                     const legacyFiles = parseProjectCodeLegacy(project.code);
                     const newNodes = convertVirtualFilesToNodes(project.id, legacyFiles);
 
+// Debug: Parsed legacy files
+console.log('[DEBUG] Parsed legacy files:', { legacyFilesCount: legacyFiles.length, newNodesCount: newNodes.length, firstNode: newNodes[0] });
+
                     let migratedCount = 0;
                     for (const node of newNodes) {
+                        // Debug: Attempting to create file
+                        console.log('[DEBUG] Attempting to create file:', { fileName: node.name, filePath: node.path, projectId: node.projectId });
                         try {
                             await db.createFile(node);
                             migratedCount++;
+                            // Debug: File created successfully
+                            console.log('[DEBUG] File created successfully:', { fileName: node.name, migratedCount });
                         } catch (e: any) {
                             // Handle collision during migration
-                            if (e.message?.includes('already exists')) {
+                            if (e.message?.includes('already exists') || e.message?.includes('ConstraintError')) {
+                                // Debug: Skipping duplicate file during migration
+                                console.log('[DEBUG] Skipping duplicate file during migration:', { fileName: node.name, filePath: node.path, errorMessage: e.message });
                                 console.warn(`[Migration] Skipping duplicate: ${node.path}`);
                             } else {
+                                // Debug: Migration failed with unexpected error
+                                console.log('[DEBUG] Migration failed with unexpected error:', { fileName: node.name, filePath: node.path, errorMessage: e.message, errorName: e.name });
                                 console.error(`[Migration] Failed to migrate file ${node.name}:`, e);
                                 throw new Error(`Migration failed for file ${node.name}: ${e.message}`);
                             }

@@ -5,7 +5,7 @@ import { db } from '../../lib/db';
 
 // Mock the db module
 vi.mock('../../lib/db', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = await importOriginal() as any;
   return {
     ...actual,
     db: {
@@ -27,6 +27,11 @@ describe('useProjectFileSystem', () => {
   const mockProject = {
     id: 'test-project-id',
     title: 'Test Project',
+    thumbnailUrl: '',
+    viewedAt: '2023-01-01',
+    authorName: 'Test Author',
+    authorAvatar: '',
+    category: 'mine' as const,
     code: '<html><body>Hello World</body></html>',
   };
 
