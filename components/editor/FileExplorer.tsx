@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Plus, File, Trash2, AlertCircle, FolderOpen, X } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { Plus, File, Trash2, AlertCircle, FolderOpen, X, Edit3, MoreVertical } from 'lucide-react';
 import { FileNode } from '../../types';
+import { ARABIC_TEXT } from '../../utils/i18n';
 
 interface FileExplorerProps {
     files: FileNode[];
@@ -8,6 +9,7 @@ interface FileExplorerProps {
     onSelectFile: (id: string) => void;
     onCreateFile: (fileName: string) => Promise<void>;
     onDeleteFile: (id: string, e: React.MouseEvent) => void;
+    onRenameFile?: (id: string, newName: string) => Promise<boolean>;
     problems: string[];
 }
 
@@ -17,11 +19,14 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     onSelectFile,
     onCreateFile,
     onDeleteFile,
+    onRenameFile,
     problems
 }) => {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newFileName, setNewFileName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
+    const [renamingFileId, setRenamingFileId] = useState<string | null>(null);
+    const [renameValue, setRenameValue] = useState('');
 
     const handleCreateFile = async () => {
         if (!newFileName.trim()) return;
@@ -46,6 +51,26 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
             setNewFileName('');
         }
     };
+
+    const startRenaming = useCallback((fileId: string, currentName: string) => {
+        setRenamingFileId(fileId);
+        setRenameValue(currentName);
+    }, []);
+
+    const handleRename = useCallback(async () => {
+        if (!renamingFileId || !renameValue.trim() || !onRenameFile) return;
+
+        const success = await onRenameFile(renamingFileId, renameValue.trim());
+        if (success) {
+            setRenamingFileId(null);
+            setRenameValue('');
+        }
+    }, [renamingFileId, renameValue, onRenameFile]);
+
+    const cancelRename = useCallback(() => {
+        setRenamingFileId(null);
+        setRenameValue('');
+    }, []);
     return (
         <div className="w-60 bg-[#09090b] border-r border-white/10 flex flex-col shrink-0 animate-slide-right h-full">
             <div className="p-3 border-b border-white/5 flex items-center justify-between">
@@ -63,25 +88,59 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
                 {files.map(file => (
                     <div
                         key={file.id}
-                        onClick={() => onSelectFile(file.id)}
-                        className={`group flex items-center justify-between px-3 py-2 rounded-md text-sm cursor-pointer mb-1 transition-all ${activeFileId === file.id
+                        className={`group flex items-center justify-between px-3 py-2 rounded-md text-sm mb-1 transition-all ${activeFileId === file.id
                                 ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
                                 : 'text-gray-400 hover:text-gray-200 hover:bg-white/5 border border-transparent'
                             }`}
                     >
-                        <div className="flex items-center gap-2 truncate">
+                        <div className="flex items-center gap-2 truncate flex-grow">
                             <File size={14} className={activeFileId === file.id ? 'text-blue-500' : 'text-gray-500'} />
-                            <span className="truncate">{file.name}</span>
+                            {renamingFileId === file.id ? (
+                                <input
+                                    value={renameValue}
+                                    onChange={(e) => setRenameValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleRename();
+                                        if (e.key === 'Escape') cancelRename();
+                                    }}
+                                    onBlur={handleRename}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="bg-[#18181b] border border-blue-500/50 rounded px-2 py-1 text-xs flex-grow min-w-0"
+                                    autoFocus
+                                />
+                            ) : (
+                                <span
+                                    className="truncate cursor-pointer flex-grow"
+                                    onClick={() => onSelectFile(file.id)}
+                                    onDoubleClick={() => onRenameFile && startRenaming(file.id, file.name)}
+                                >
+                                    {file.name}
+                                </span>
+                            )}
                         </div>
-                        {files.length > 1 && (
-                            <button
-                                onClick={(e) => onDeleteFile(file.id, e)}
-                                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 text-red-500 rounded transition-all"
-                                title="Delete File"
-                            >
-                                <Trash2 size={12} />
-                            </button>
-                        )}
+                        <div className="flex items-center gap-1">
+                            {onRenameFile && renamingFileId !== file.id && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        startRenaming(file.id, file.name);
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 text-gray-500 hover:text-white rounded transition-all"
+                                    title="Rename File"
+                                >
+                                    <Edit3 size={12} />
+                                </button>
+                            )}
+                            {files.length > 1 && (
+                                <button
+                                    onClick={(e) => onDeleteFile(file.id, e)}
+                                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 text-red-500 rounded transition-all"
+                                    title="Delete File"
+                                >
+                                    <Trash2 size={12} />
+                                </button>
+                            )}
+                        </div>
                     </div>
                 ))}
             </div>
@@ -112,7 +171,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
                     <div className="bg-[#18181b] border border-white/10 rounded-lg p-6 w-96 max-w-[90vw]">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-semibold text-white">إنشاء ملف جديد</h3>
+                            <h3 className="text-sm font-semibold text-white">{ARABIC_TEXT.CREATE_NEW_FILE}</h3>
                             <button
                                 onClick={() => {
                                     setShowCreateModal(false);
@@ -127,14 +186,14 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
                         <div className="space-y-4">
                             <div>
                                 <label className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2 block">
-                                    اسم الملف
+                                    {ARABIC_TEXT.FILE_NAME}
                                 </label>
                                 <input
                                     type="text"
                                     value={newFileName}
                                     onChange={(e) => setNewFileName(e.target.value)}
                                     onKeyDown={handleKeyPress}
-                                    placeholder="مثال: page2.html, styles.css, script.js"
+                                    placeholder={ARABIC_TEXT.FILE_NAME_EXAMPLE}
                                     className="w-full bg-[#09090b] border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50"
                                     autoFocus
                                 />

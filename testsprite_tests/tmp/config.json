@@ -1,0 +1,16 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:5173/localhost:5173",
+  "executionArgs": {
+    "projectName": "112324324",
+    "projectPath": "C:\\Users\\dlwta\\112324324",
+    "testIds": [],
+    "additionalInstruction": "",
+    "envs": {
+      "API_KEY": "sk-user-XYRTPZRK3qP2_BA83-zUmAN7FX_o11-bHM3ePBuV-uLiNq1KpCo-ZXyYE1MrllsQCk3Cvy96RcAZ8gBK3R_-w6GtZTvgawmaiwhAFGMdxfO9Vk1XxJc6RVSNjX6lXlFfgRs"
+    }
+  },
+  "proxy": "http://8bbe5a6e-b6b0-4ed5-85e7-d5179d4aafdf:wnUtzWOqQyeRtC6A0Jm7cqOhUJhgCJ4E@tun.testsprite.com:8080"
+}

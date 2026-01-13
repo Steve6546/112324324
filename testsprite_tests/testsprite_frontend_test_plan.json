@@ -1,0 +1,519 @@
+[
+  {
+    "id": "TC001",
+    "title": "AI Code Generation with valid natural language prompt",
+    "description": "Verify the system generates syntactically valid and functional HTML, CSS, and JavaScript files based on a well-formed natural language prompt using Google Gemini AI.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open the app and navigate to input section."
+      },
+      {
+        "type": "action",
+        "description": "Set a valid Gemini AI API key and select an AI model in the settings modal."
+      },
+      {
+        "type": "action",
+        "description": "Enter a natural language prompt describing a simple webpage (e.g., \"Create a responsive portfolio website with three sections\")."
+      },
+      {
+        "type": "action",
+        "description": "Submit the prompt for AI code generation."
+      },
+      {
+        "type": "assertion",
+        "description": "Check streaming response from Google Gemini AI appears and completes without error."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that generated files (HTML, CSS, JS) are saved into IndexedDB virtual file system."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm loaded files appear correctly in Monaco editor's file explorer."
+      },
+      {
+        "type": "assertion",
+        "description": "Validate generated code is syntactically correct and functional by running live preview without errors."
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "AI Code Generation error handling with empty prompt",
+    "description": "Verify the system properly handles an empty natural language prompt input and shows relevant error notification.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open input section and leave the natural language prompt empty."
+      },
+      {
+        "type": "action",
+        "description": "Submit the empty prompt."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that the system blocks submission and displays an error toast notification indicating that prompt cannot be empty."
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Monaco Editor multi-file operations",
+    "description": "Verify that the Monaco editor supports creating, renaming, and deleting files with proper UI updates.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open a project loaded in the Monaco editor."
+      },
+      {
+        "type": "action",
+        "description": "Create a new file with valid name and extension (e.g., 'test.js')."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify new file appears in the file explorer and is editable."
+      },
+      {
+        "type": "action",
+        "description": "Rename the newly created file to another valid name (e.g., 'script.js')."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm file explorer updates with the new filename and code contents remain intact."
+      },
+      {
+        "type": "action",
+        "description": "Delete the renamed file."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the file is removed from the file explorer and storage."
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Monaco Editor syntax highlighting accuracy",
+    "description": "Verify syntax highlighting works correctly for HTML, CSS, and JavaScript files in the Monaco editor.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open files of type HTML, CSS, and JavaScript in the editor."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that keywords, tags, attributes, selectors, properties, and JS syntax are highlighted appropriately according to language rules."
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Live preview updates reflect code changes immediately",
+    "description": "Verify that any code changes in the Monaco editor update the live preview sandboxed iframe without delay or error.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open a project with multiple files in the Monaco editor."
+      },
+      {
+        "type": "action",
+        "description": "Edit the HTML file by adding a visible element."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm live preview instantly reflects the new element."
+      },
+      {
+        "type": "action",
+        "description": "Edit CSS file to add styles to the new element."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify live preview updates styles immediately."
+      },
+      {
+        "type": "action",
+        "description": "Modify JavaScript file to add interactive behavior."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm live preview executes JavaScript and behavior is as expected."
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "IndexedDB Storage persistence and migration",
+    "description": "Verify that project files and data persist across browser sessions and that storage migrations occur without data loss.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Create and save a new project with multiple files."
+      },
+      {
+        "type": "action",
+        "description": "Close the browser tab and re-open the app."
+      },
+      {
+        "type": "assertion",
+        "description": "Check the previously saved project and files are loaded correctly from IndexedDB."
+      },
+      {
+        "type": "action",
+        "description": "Trigger a version upgrade of IndexedDB schema (simulate migration)."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify data integrity is maintained and project files load without corruption."
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Settings modal saves and applies API key and AI model",
+    "description": "Verify users can input, save and apply Gemini AI API keys and select AI models successfully in settings modal.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open settings modal."
+      },
+      {
+        "type": "action",
+        "description": "Enter a valid AI API key."
+      },
+      {
+        "type": "action",
+        "description": "Select an AI model from available options (free and paid)."
+      },
+      {
+        "type": "action",
+        "description": "Save the settings."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm settings modal closes and selections persist on reopen."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify AI code generation uses the configured API key and model."
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Theme system light, dark, and system modes",
+    "description": "Verify that theme switching works smoothly between light, dark, and system preference modes with all UI elements adapting accordingly.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open theme settings or toggle theme switch."
+      },
+      {
+        "type": "action",
+        "description": "Switch to light theme mode."
+      },
+      {
+        "type": "assertion",
+        "description": "Check UI elements and backgrounds update to light theme colors smoothly."
+      },
+      {
+        "type": "action",
+        "description": "Switch to dark theme mode."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify UI updates smoothly to dark theme colors."
+      },
+      {
+        "type": "action",
+        "description": "Set theme to system default."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm the UI changes adapt based on the operating system theme preference."
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Toast notifications appear correctly on operations",
+    "description": "Validate that toast notifications display appropriately for success, error, and informational messages with distinct styling.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Trigger a successful operation (e.g., file save)."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm a success toast notification appears with correct message and disappears after timeout."
+      },
+      {
+        "type": "action",
+        "description": "Trigger an error condition (e.g., AI generation failure due to invalid API key)."
+      },
+      {
+        "type": "assertion",
+        "description": "Check error toast notification appears with appropriate message and distinct styling."
+      },
+      {
+        "type": "action",
+        "description": "Trigger an informational notification (e.g., auto-save complete)."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify info toast appears with correct style and text."
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "AI Chat Interface conversational refinement",
+    "description": "Verify the AI chat interface processes natural language user commands to modify code, fix bugs, and add features iteratively.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open AI chat interface."
+      },
+      {
+        "type": "action",
+        "description": "Send a command asking to fix a bug in current code."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm AI responds with suggested code changes."
+      },
+      {
+        "type": "action",
+        "description": "Apply AI suggested changes."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify code editor updates and live preview reflects fixes."
+      },
+      {
+        "type": "action",
+        "description": "Send a command to add a new feature or UI element."
+      },
+      {
+        "type": "assertion",
+        "description": "Check AI suggests code additions and updates project files accordingly."
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Mobile touch interactions reliability",
+    "description": "Verify touch gestures (swipe-to-delete, long-press), haptic feedback, and other advanced interactions work correctly on supported mobile devices.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open project dashboard on mobile device or emulator."
+      },
+      {
+        "type": "action",
+        "description": "Perform swipe-to-delete gesture on a project item."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm project is deleted and haptic feedback is triggered."
+      },
+      {
+        "type": "action",
+        "description": "Long-press a file in file explorer."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify long-press menu appears with expected options."
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Voice command input triggers expected actions",
+    "description": "Verify voice command input accurately recognizes English and Arabic commands and triggers the corresponding application actions.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Activate voice command input."
+      },
+      {
+        "type": "action",
+        "description": "Speak a supported command in English (e.g., 'Create new JavaScript file')."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm command is recognized and executed (new JS file created)."
+      },
+      {
+        "type": "action",
+        "description": "Repeat with a command in Arabic with equivalent meaning."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify command is recognized and appropriate action triggered."
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Real-time sync and auto-save prevent data conflicts",
+    "description": "Verify that auto-save with debounced writes and conflict resolution ensures no data corruption occurs during concurrent multi-tab edits.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open the same project in two different browser tabs."
+      },
+      {
+        "type": "action",
+        "description": "Make conflicting edits to the same file from both tabs concurrently."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm auto-save triggers debounced writes without data loss."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify conflict resolution correctly merges or prompts user with conflict dialogs."
+      },
+      {
+        "type": "action",
+        "description": "Reload both tabs and check file contents for consistency."
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Built-in code formatting enforces style rules on save",
+    "description": "Verify that language-specific code formatting is applied consistently upon saving files in the Monaco editor.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open a project file (HTML, CSS, or JavaScript) and modify code with inconsistent formatting."
+      },
+      {
+        "type": "action",
+        "description": "Save the file in the editor."
+      },
+      {
+        "type": "assertion",
+        "description": "Check code is reformatted according to defined style rules automatically."
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Project management: organize, filter, star, and search projects",
+    "description": "Verify users can organize projects using categories, stars, filters, and perform advanced searches on the project dashboard effectively.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open project dashboard with multiple projects."
+      },
+      {
+        "type": "action",
+        "description": "Apply category filters and verify only matching projects display."
+      },
+      {
+        "type": "action",
+        "description": "Star a project and check that it is marked visually."
+      },
+      {
+        "type": "action",
+        "description": "Use search input with partial project names or keywords."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm project dashboard updates dynamically to show relevant results."
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Security: verify Content Security Policy and iframe sandboxing",
+    "description": "Ensure that the application enforces strict CSP headers and sandboxed iframe preview environment to prevent injection attacks and unauthorized script executions.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Inspect HTTP response headers for Content Security Policies."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify CSP headers disable inline scripts, restrict sources properly, and allow sandboxed iframe usage."
+      },
+      {
+        "type": "action",
+        "description": "Observe iframe preview element."
+      },
+      {
+        "type": "assertion",
+        "description": "Check iframe has sandbox attributes set to isolate execution."
+      },
+      {
+        "type": "action",
+        "description": "Attempt to inject unauthorized scripts via generated code."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm the scripts do not execute outside the sandbox and no security breaches occur."
+      }
+    ]
+  },
+  {
+    "id": "TC017",
+    "title": "Cross-platform UI performance and responsiveness",
+    "description": "Verify the application performs smoothly and UI adapts correctly across desktop, tablet, and mobile devices with no critical bugs.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Access the application on desktop, tablet, and mobile environments."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that UI components resize and reorganize according to device type (responsive design)."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify smooth scrolling, animations, and input responsiveness on all devices."
+      },
+      {
+        "type": "assertion",
+        "description": "Test key features (code editor, live preview, project dashboard) and ensure no critical UI or functional bugs are present."
+      }
+    ]
+  }
+]

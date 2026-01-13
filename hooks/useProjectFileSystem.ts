@@ -20,20 +20,32 @@ const convertVirtualFilesToNodes = (projectId: string, virtualFiles: any[]): Fil
 // Legacy Parser
 const parseProjectCodeLegacy = (fullHtml: string): any[] => {
     const files: any[] = [];
-    const styleMatch = fullHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
-    const cssContent = styleMatch ? styleMatch[1].trim() : "";
-    const scriptMatch = fullHtml.match(/<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/i);
-    const jsContent = scriptMatch ? scriptMatch[1].trim() : "";
 
-    files.push({ id: crypto.randomUUID(), name: 'index.html', language: 'html', content: fullHtml });
-    if (cssContent) files.push({ id: crypto.randomUUID(), name: 'styles.css', language: 'css', content: cssContent });
-    if (jsContent) files.push({ id: crypto.randomUUID(), name: 'script.js', language: 'javascript', content: jsContent });
+    // Extract all inline styles
+    const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+    const styleMatches = [...fullHtml.matchAll(styleRegex)];
+    const allCssContent = styleMatches.map(match => match[1].trim()).filter(content => content).join('\n\n');
+
+    // Extract all inline scripts (excluding those with src attributes)
+    const scriptRegex = /<script(?![^>]*src[^>]*)(?:[^>]*)>([\s\S]*?)<\/script>/gi;
+    const scriptMatches = [...fullHtml.matchAll(scriptRegex)];
+    const allJsContent = scriptMatches.map(match => match[1].trim()).filter(content => content).join('\n\n');
+
+    // Clean HTML by removing ALL inline styles and scripts
+    let cleanHtml = fullHtml;
+    cleanHtml = cleanHtml.replace(styleRegex, '');
+    cleanHtml = cleanHtml.replace(scriptRegex, '');
+
+    files.push({ id: crypto.randomUUID(), name: 'index.html', language: 'html', content: cleanHtml });
+    if (allCssContent) files.push({ id: crypto.randomUUID(), name: 'styles.css', language: 'css', content: allCssContent });
+    if (allJsContent) files.push({ id: crypto.randomUUID(), name: 'script.js', language: 'javascript', content: allJsContent });
 
     return files;
 };
 
-// Debounce configuration
-const DEBOUNCE_MS = 700; // 700ms debounce per file
+// Enhanced debounce configuration for better performance
+const DEBOUNCE_MS = 500; // Reduced to 500ms for better responsiveness
+const MAX_PENDING_WRITES = 10; // Limit pending writes to prevent memory issues
 
 // Pending writes tracker (for flush on unmount/blur)
 type PendingWrite = {
@@ -185,13 +197,36 @@ console.log('[DEBUG] Parsed legacy files:', { legacyFilesCount: legacyFiles.leng
             clearTimeout(existing.timerId);
         }
 
-        // Schedule new write
+        // Memory management: prevent too many pending writes
+        if (pendingWrites.current.size >= MAX_PENDING_WRITES) {
+            console.warn('[AutoSave] Too many pending writes, forcing flush');
+            // Force flush all pending writes
+            const allPending = Array.from(pendingWrites.current.entries());
+            for (const [pendingId, { content: pendingContent, timerId }] of allPending) {
+                clearTimeout(timerId);
+                db.updateFileContent(pendingId, pendingContent).catch(e =>
+                    console.error(`[ForceFlush] Failed to save ${pendingId}:`, e)
+                );
+            }
+            pendingWrites.current.clear();
+        }
+
+        // Schedule new write with enhanced error handling
         const timerId = setTimeout(async () => {
             try {
                 await db.updateFileContent(id, content);
                 console.log(`[AutoSave] File ${id} saved.`);
             } catch (e) {
                 console.error("[AutoSave] Failed:", e);
+                // Retry once after a short delay
+                setTimeout(async () => {
+                    try {
+                        await db.updateFileContent(id, content);
+                        console.log(`[AutoSave] File ${id} saved (retry).`);
+                    } catch (retryError) {
+                        console.error("[AutoSave] Retry failed:", retryError);
+                    }
+                }, 1000);
             } finally {
                 pendingWrites.current.delete(id);
             }

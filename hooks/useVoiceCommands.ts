@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { ARABIC_TEXT } from '../utils/i18n';
 
 interface VoiceCommand {
   keywords: string[];
@@ -169,34 +170,34 @@ const getLanguageCommands = (language: string): VoiceCommand[] => {
   if (isArabic) {
     return [
       {
-        keywords: ['أنشئ', 'اصنع', 'بنِ', 'مشروع جديد', 'ابدأ مشروع', 'create', 'make', 'build'],
+        keywords: [ARABIC_TEXT.CREATE_PROJECT, ARABIC_TEXT.MAKE_PROJECT, ARABIC_TEXT.BUILD_PROJECT, ARABIC_TEXT.NEW_PROJECT, ARABIC_TEXT.START_PROJECT, 'create', 'make', 'build'],
         action: (transcript) => {
           const prompt = transcript
-            .replace(/^(أنشئ|اصنع|بنِ|مشروع جديد|ابدأ مشروع|create|make|build)/i, '')
+            .replace(new RegExp(`^(${ARABIC_TEXT.CREATE_PROJECT}|${ARABIC_TEXT.MAKE_PROJECT}|${ARABIC_TEXT.BUILD_PROJECT}|${ARABIC_TEXT.NEW_PROJECT}|${ARABIC_TEXT.START_PROJECT}|create|make|build)`, 'i'), '')
             .trim();
           return prompt || 'أنشئ تطبيق جديد';
         },
-        description: 'إنشاء مشروع جديد',
+        description: ARABIC_TEXT.COMMAND_DESCRIPTIONS.CREATE_PROJECT,
       },
       {
-        keywords: ['افتح', 'اظهر', 'حمّل', 'open', 'show', 'load'],
+        keywords: [ARABIC_TEXT.OPEN_PROJECT, ARABIC_TEXT.SHOW_PROJECT, ARABIC_TEXT.LOAD_PROJECT, 'open', 'show', 'load'],
         action: (transcript) => {
           const projectName = transcript
-            .replace(/^(افتح|اظهر|حمّل|open|show|load)/i, '')
+            .replace(new RegExp(`^(${ARABIC_TEXT.OPEN_PROJECT}|${ARABIC_TEXT.SHOW_PROJECT}|${ARABIC_TEXT.LOAD_PROJECT}|open|show|load)`, 'i'), '')
             .trim();
           return projectName;
         },
-        description: 'فتح مشروع',
+        description: ARABIC_TEXT.COMMAND_DESCRIPTIONS.OPEN_PROJECT,
       },
       {
-        keywords: ['احذف', 'أزل', 'امسح', 'delete', 'remove', 'erase'],
+        keywords: [ARABIC_TEXT.DELETE_PROJECT, ARABIC_TEXT.REMOVE_PROJECT, ARABIC_TEXT.ERASE_PROJECT, 'delete', 'remove', 'erase'],
         action: (transcript) => {
           const projectName = transcript
-            .replace(/^(احذف|أزل|امسح|delete|remove|erase)/i, '')
+            .replace(new RegExp(`^(${ARABIC_TEXT.DELETE_PROJECT}|${ARABIC_TEXT.REMOVE_PROJECT}|${ARABIC_TEXT.ERASE_PROJECT}|delete|remove|erase)`, 'i'), '')
             .trim();
           return projectName;
         },
-        description: 'حذف مشروع',
+        description: ARABIC_TEXT.COMMAND_DESCRIPTIONS.DELETE_PROJECT,
       },
       {
         keywords: ['الرئيسية', 'المنزل', 'لوحة التحكم', 'home', 'main', 'dashboard'],

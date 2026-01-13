@@ -5,6 +5,7 @@ import { THEMES, getThemeById, getAdaptiveTheme, ThemeDefinition } from '../util
 import { useVoiceCommands } from '../hooks/useVoiceCommands';
 import { useTouchGestures } from '../hooks/useTouchGestures';
 import { useProgressiveEnhancementContext, EnhancementGate } from '../src/contexts/ProgressiveEnhancementContext';
+import { ARABIC_TEXT } from '../utils/i18n';
 
 interface InputSectionProps {
   onSubmit: (prompt: string, imageBase64?: string, selectedTheme?: string | null) => void;
@@ -43,6 +44,7 @@ interface VoicePrivacySettings {
   allowContinuousListening: boolean;
   requireWakeWord: boolean;
   wakeWords: string[];
+  customWakeWords: string[]; // Separate storage to prevent Arabic encoding corruption
   autoStopAfterSilence: number;
   maxRecordingTime: number;
 }
@@ -88,7 +90,15 @@ const loadVoicePrivacySettings = (): VoicePrivacySettings => {
   try {
     const stored = localStorage.getItem('lovable_voice_privacy');
     if (stored) {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      // Always include default Arabic wake words + any custom user words
+      // This prevents encoding corruption of Arabic text
+      const customWords = parsed.customWakeWords || [];
+      return {
+        ...parsed,
+        wakeWords: [...ARABIC_TEXT.WAKE_WORDS, ...customWords],
+        customWakeWords: customWords // Store separately to avoid corruption
+      };
     }
   } catch (error) {
     console.error('Error loading voice privacy settings:', error);
@@ -98,7 +108,8 @@ const loadVoicePrivacySettings = (): VoicePrivacySettings => {
   return {
     allowContinuousListening: false,
     requireWakeWord: true,
-    wakeWords: ['hey lovable', 'لوفابل'],
+    wakeWords: [...ARABIC_TEXT.WAKE_WORDS],
+    customWakeWords: [], // Separate storage for custom words
     autoStopAfterSilence: 5000,
     maxRecordingTime: 30000
   };
@@ -106,24 +117,10 @@ const loadVoicePrivacySettings = (): VoicePrivacySettings => {
 
 // Automatic transcription correction
 const correctTranscription = (transcript: string): string => {
-  const corrections: Record<string, string> = {
-    'كرييت': 'create',
-    'ميك': 'make',
-    'صابميت': 'submit',
-    'كلير': 'clear',
-    'بيلد': 'build',
-    'ستارت': 'start',
-    'ستوب': 'stop',
-    'أنشئ': 'create',
-    'اصنع': 'make',
-    'أرسل': 'submit',
-    'امسح': 'clear'
-  };
-
   let corrected = transcript.toLowerCase().trim();
 
-  // Apply corrections
-  Object.entries(corrections).forEach(([wrong, correct]) => {
+  // Apply corrections from i18n
+  Object.entries(ARABIC_TEXT.CORRECTIONS).forEach(([wrong, correct]) => {
     corrected = corrected.replace(new RegExp(wrong, 'gi'), correct);
   });
 
@@ -225,9 +222,10 @@ const VoicePrivacySettings: React.FC<{
                   className="mt-2 w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   onKeyPress={(e) => {
                     if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                      updateSetting('wakeWords', [
-                        ...settings.wakeWords,
-                        e.currentTarget.value.trim()
+                      const newWord = e.currentTarget.value.trim();
+                      updateSetting('customWakeWords', [
+                        ...settings.customWakeWords,
+                        newWord
                       ]);
                       e.currentTarget.value = '';
                     }
@@ -533,7 +531,15 @@ const InputSection: React.FC<InputSectionProps> = ({ onSubmit, isGenerating, sel
   const handleVoicePrivacySettingsChange = useCallback((newSettings: VoicePrivacySettings) => {
     setVoicePrivacy(newSettings);
     try {
-      localStorage.setItem('lovable_voice_privacy', JSON.stringify(newSettings));
+      // Only save settings that don't contain Arabic text to prevent encoding corruption
+      const settingsToSave = {
+        allowContinuousListening: newSettings.allowContinuousListening,
+        requireWakeWord: newSettings.requireWakeWord,
+        customWakeWords: newSettings.customWakeWords,
+        autoStopAfterSilence: newSettings.autoStopAfterSilence,
+        maxRecordingTime: newSettings.maxRecordingTime
+      };
+      localStorage.setItem('lovable_voice_privacy', JSON.stringify(settingsToSave));
     } catch (error) {
       console.error('Error saving voice privacy settings:', error);
     }

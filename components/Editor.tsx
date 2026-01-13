@@ -19,43 +19,195 @@ interface EditorProps {
     onUpdate: (project: Project) => void;
 }
 
-type EditorView = 'preview' | 'code';
+type EditorView = 'preview' | 'code' | 'console';
 type DeviceType = 'desktop' | 'mobile';
 
-// Helper to bundle files back into a single HTML string for Preview
-const bundlePreview = (files: FileNode[]): string => {
-    const indexHtml = files.find(f => f.name === 'index.html')?.content || '';
-    const cssFiles = files.filter(f => f.language === 'css' && f.name !== 'index.html');
-    const jsFiles = files.filter(f => f.language === 'javascript' && f.name !== 'index.html');
+// Enhanced bundling for ES modules and multi-file support
+const bundlePreview = (files: FileNode[]): { html: string, errors: string[] } => {
+    const errors: string[] = [];
+    let bundled = '';
 
-    // Remove Tailwind CDN references from HTML content
-    let bundled = indexHtml
-        .replace(/<script[^>]*src=["'][^"']*cdn\.tailwindcss\.com[^"']*["'][^>]*><\/script>/gi, '')
-        .replace(/<link[^>]*href=["'][^"']*cdn\.tailwindcss\.com[^"']*["'][^>]*>/gi, '');
+    try {
+        // Find index.html or create one
+        let indexHtml = files.find(f => f.name === 'index.html');
+        if (!indexHtml) {
+            // Create a basic HTML structure if no index.html exists
+            indexHtml = {
+                id: 'temp-index',
+                projectId: files[0]?.projectId || '',
+                name: 'index.html',
+                path: '/index.html',
+                type: 'file',
+                language: 'html',
+                content: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generated App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="app">
+        <h1 class="text-2xl font-bold text-center py-8">Hello World</h1>
+        <p class="text-center text-gray-600">Your app is ready!</p>
+    </div>
+</body>
+</html>`,
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            };
+            errors.push('No index.html found, created basic template');
+        }
 
-    // Process inline scripts for tailwind.config assignments only (minimal fix)
-    bundled = bundled.replace(/(<script[^>]*>)([\s\S]*?)<\/script>/gi, (match, openTag, scriptContent) => {
-        let processedContent = scriptContent;
-        // Only replace tailwind.config = ... patterns that cause errors
-        processedContent = processedContent.replace(/tailwind\.config\s*=\s*/g, 'window.tailwind.config = ');
-        return openTag + processedContent + '</script>';
-    });
+        bundled = indexHtml.content;
 
-    // Only inject CSS if not already in original HTML
-    cssFiles.forEach(file => {
-        const cssContent = file.content.trim();
-        if (cssContent && !bundled.includes(cssContent.substring(0, 50))) {
+        // Remove Tailwind CDN if present (we'll inject it properly)
+        bundled = bundled
+            .replace(/<script[^>]*src=["'][^"']*cdn\.tailwindcss\.com[^"']*["'][^>]*><\/script>/gi, '')
+            .replace(/<link[^>]*href=["'][^"']*cdn\.tailwindcss\.com[^"']*["'][^>]*>/gi, '');
+
+        // Process inline scripts for tailwind.config assignments
+        bundled = bundled.replace(/(<script[^>]*>)([\s\S]*?)<\/script>/gi, (match, openTag, scriptContent) => {
+            let processedContent = scriptContent;
+            // Replace tailwind.config assignments that cause errors
+            processedContent = processedContent.replace(/tailwind\.config\s*=\s*/g, 'window.tailwind.config = ');
+            return openTag + processedContent + '</script>';
+        });
+
+        // Inject CSS files
+        const cssFiles = files.filter(f => f.language === 'css' && f.name !== 'index.html');
+        cssFiles.forEach(file => {
+            const cssContent = file.content.trim();
+            if (cssContent && !bundled.includes(cssContent.substring(0, 50))) {
+                if (bundled.includes('</head>')) {
+                    bundled = bundled.replace('</head>', `<style>${cssContent}</style></head>`);
+                } else {
+                    bundled = `<style>${cssContent}</style>` + bundled;
+                }
+            }
+        });
+
+        // Inject JS files with ES module support
+        const jsFiles = files.filter(f => f.language === 'javascript' && f.name !== 'index.html');
+        const tsFiles = files.filter(f => f.language === 'typescript' && f.name !== 'index.html');
+
+        // Handle multiple JS files with proper module support
+        if (jsFiles.length > 0) {
+            // Create a main script that imports all JS files
+            let mainScript = '';
+
+            jsFiles.forEach((file, index) => {
+                const jsContent = file.content.trim();
+                if (jsContent) {
+                    // For multiple files, we'll inline them as separate scripts for now
+                    // In the future, this could be enhanced with proper module bundling
+                    const scriptTag = `<script type="module">
+${jsContent}
+</script>`;
+
+                    if (bundled.includes('</body>')) {
+                        bundled = bundled.replace('</body>', scriptTag + '</body>');
+                    } else {
+                        bundled += scriptTag;
+                    }
+                }
+            });
+
+            errors.push(`${jsFiles.length} JavaScript file(s) loaded with ES module support`);
+        }
+
+        // Enhanced TypeScript support (basic for now)
+        if (tsFiles.length > 0) {
+            // For now, treat TypeScript as JavaScript (remove type annotations)
+            tsFiles.forEach(file => {
+                let tsContent = file.content.trim();
+                if (tsContent) {
+                    // Basic TypeScript to JavaScript conversion (remove type annotations)
+                    // This is very basic - a real implementation would need a proper compiler
+                    tsContent = tsContent
+                        .replace(/:\s*\w+(\[\])?/g, '') // Remove type annotations
+                        .replace(/<\w+>/g, '') // Remove generic types
+                        .replace(/interface\s+\w+\s*\{[^}]*\}/g, '') // Remove interfaces
+                        .replace(/type\s+\w+\s*=.*;/g, ''); // Remove type definitions
+
+                    const scriptTag = `<script type="module">
+// Converted from TypeScript: ${file.name}
+${tsContent}
+</script>`;
+
+                    if (bundled.includes('</body>')) {
+                        bundled = bundled.replace('</body>', scriptTag + '</body>');
+                    } else {
+                        bundled += scriptTag;
+                    }
+                }
+            });
+
+            errors.push(`${tsFiles.length} TypeScript file(s) converted to JavaScript (basic conversion)`);
+        }
+
+        // Ensure Tailwind CSS is available
+        if (!bundled.includes('tailwindcss.com') && !bundled.includes('tailwind.config')) {
             if (bundled.includes('</head>')) {
-                bundled = bundled.replace('</head>', `<style>${cssContent}</style></head>`);
+                bundled = bundled.replace('</head>', '<script src="https://cdn.tailwindcss.com"></script></head>');
             } else {
-                bundled = `<style>${cssContent}</style>` + bundled;
+                bundled = '<script src="https://cdn.tailwindcss.com"></script>' + bundled;
             }
         }
+
+
+        // Inject enhanced polyfills and error handling for iframe compatibility
+        const polyfills = `<script>
+(function() {
+    // Enhanced console logging to parent window
+    const originalConsole = {
+        log: console.log,
+        warn: console.warn,
+        error: console.error,
+        info: console.info
+    };
+
+    // Override console methods to send messages to parent
+    ['log', 'warn', 'error', 'info'].forEach(level => {
+        console[level] = function(...args) {
+            // Call original method
+            originalConsole[level].apply(console, args);
+
+            // Send to parent window
+            try {
+                window.parent.postMessage({
+                    type: 'console',
+                    level: level,
+                    message: args.map(arg =>
+                        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                    ).join(' ')
+                }, '*');
+            } catch (e) {
+                // Fallback if postMessage fails
+                originalConsole.error('Failed to send console message:', e);
+            }
+        };
     });
 
-    // Inject minimal polyfills for iframe compatibility
-    const polyfills = `<script>
-(function() {
+    // Enhanced error handling
+    window.addEventListener('error', function(event) {
+        window.parent.postMessage({
+            type: 'error',
+            message: event.message,
+            filename: event.filename,
+            lineno: event.lineno,
+            colno: event.colno
+        }, '*');
+    });
+
+    window.addEventListener('unhandledrejection', function(event) {
+        window.parent.postMessage({
+            type: 'error',
+            message: 'Unhandled Promise Rejection: ' + (event.reason?.message || event.reason)
+        }, '*');
+    });
+
     // Only define tailwind.config if it doesn't exist to prevent "Cannot set properties of undefined" errors
     if (typeof window.tailwind === 'undefined') {
         window.tailwind = { config: {} };
@@ -63,7 +215,7 @@ const bundlePreview = (files: FileNode[]): string => {
         window.tailwind.config = {};
     }
 
-    // CommonJS require polyfill for @tailwindcss plugins
+    // ES Module support and CommonJS require polyfill for @tailwindcss plugins
     var modules = {};
     var require = function(id) {
         if (modules[id]) return modules[id].exports;
@@ -103,31 +255,38 @@ const bundlePreview = (files: FileNode[]): string => {
 })();
 </script>`;
 
-    // Inject polyfills immediately after <html> tag for earliest execution
-    if (bundled.includes('<html>')) {
-        bundled = bundled.replace('<html>', '<html>' + polyfills);
-    } else if (bundled.includes('<head>')) {
-        bundled = bundled.replace('<head>', polyfills + '<head>');
-    } else {
-        bundled = polyfills + bundled;
-    }
-
-    // Only inject JS if not already in original HTML
-    jsFiles.forEach(file => {
-        let jsContent = file.content.trim();
-        // Only replace tailwind.config assignments that cause "Cannot set properties of undefined" errors
-        jsContent = jsContent.replace(/tailwind\.config\s*=\s*/g, 'window.tailwind.config = ');
-
-        if (jsContent && !bundled.includes(jsContent.substring(0, 50))) {
-            if (bundled.includes('</body>')) {
-                bundled = bundled.replace('</body>', `<script>${jsContent}</script></body>`);
-            } else {
-                bundled += `<script>${jsContent}</script>`;
-            }
+        // Inject polyfills immediately after <html> tag for earliest execution
+        if (bundled.includes('<html>')) {
+            bundled = bundled.replace('<html>', '<html>' + polyfills);
+        } else if (bundled.includes('<head>')) {
+            bundled = bundled.replace('<head>', polyfills + '<head>');
+        } else {
+            bundled = polyfills + bundled;
         }
-    });
 
-    return bundled;
+        return { html: bundled, errors };
+    } catch (error) {
+        errors.push(`Bundling error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        // Fallback to basic HTML
+        return {
+            html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div class="text-center py-8">
+        <h1 class="text-2xl font-bold text-red-600">Preview Error</h1>
+        <p class="text-gray-600 mt-4">${error instanceof Error ? error.message : 'Unknown error occurred'}</p>
+    </div>
+</body>
+</html>`,
+            errors
+        };
+    }
 };
 
 const Editor: React.FC<EditorProps> = ({ project, onBack, onUpdate }) => {
@@ -143,6 +302,7 @@ const Editor: React.FC<EditorProps> = ({ project, onBack, onUpdate }) => {
         updateFile,
         createFile: dbCreateFile,
         deleteFile: dbDeleteFile,
+        renameFile,
         forceSave,
         flushAll,
         isLoading: isFilesLoading,
@@ -158,10 +318,15 @@ const Editor: React.FC<EditorProps> = ({ project, onBack, onUpdate }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>(project.chatHistory || []);
     const [problems, setProblems] = useState<string[]>([]);
+    const [bundlingErrors, setBundlingErrors] = useState<string[]>([]);
+    const [editorMarkers, setEditorMarkers] = useState<any[]>([]);
 
     // Refs
     const chatEndRef = useRef<HTMLDivElement>(null);
     const iframeRef = useRef<HTMLIFrameElement>(null);
+
+    // Console logs from iframe
+    const [consoleLogs, setConsoleLogs] = useState<{type: string, message: string, timestamp: number}[]>([]);
 
     // Derived
     const activeFile = useMemo(() => files.find(f => f.id === activeFileId), [files, activeFileId]);
@@ -173,6 +338,37 @@ const Editor: React.FC<EditorProps> = ({ project, onBack, onUpdate }) => {
             clearError();
         }
     }, [fsError, showToast, clearError]);
+
+    // Setup iframe communication for console logs and errors
+    useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            // Only accept messages from our iframe
+            if (event.source !== iframeRef.current?.contentWindow) return;
+
+            if (event.data.type === 'console') {
+                setConsoleLogs(prev => [...prev.slice(-49), { // Keep last 50 logs
+                    type: event.data.level,
+                    message: event.data.message,
+                    timestamp: Date.now()
+                }]);
+            } else if (event.data.type === 'error') {
+                setProblems(prev => [...prev, `Runtime Error: ${event.data.message}`]);
+                setConsoleLogs(prev => [...prev.slice(-49), {
+                    type: 'error',
+                    message: `Runtime Error: ${event.data.message}`,
+                    timestamp: Date.now()
+                }]);
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, []);
+
+    // Clear console logs when switching files or updating preview
+    const clearConsoleLogs = useCallback(() => {
+        setConsoleLogs([]);
+    }, []);
 
     // Auto-scroll chat
     useEffect(() => {
@@ -204,19 +400,60 @@ const Editor: React.FC<EditorProps> = ({ project, onBack, onUpdate }) => {
     useEffect(() => {
         const timeout = setTimeout(() => {
             if (iframeRef.current && files.length > 0) {
-                const bundled = bundlePreview(files);
-                iframeRef.current.srcdoc = bundled;
+                try {
+                    // Clear console logs when updating preview
+                    setConsoleLogs([]);
 
-                // Basic Problem Check
-                const newProblems = [];
-                if (!bundled.includes('<!DOCTYPE html>')) {
-                    newProblems.push("Warning: Missing DOCTYPE declaration.");
+                    const result = bundlePreview(files);
+                    iframeRef.current.srcdoc = result.html;
+                    setBundlingErrors(result.errors);
+
+                    // Enhanced Problem Check
+                    const newProblems = [...result.errors];
+                    if (!result.html.includes('<!DOCTYPE html>')) {
+                        newProblems.push("Warning: Missing DOCTYPE declaration.");
+                    }
+
+                    // Check for ES module issues
+                    const allJsFiles = files.filter(f => f.language === 'javascript');
+                    if (allJsFiles.some(f => f.content.includes('import ') || f.content.includes('export '))) {
+                        if (!result.html.includes('type="module"')) {
+                            newProblems.push("ES modules detected but not properly configured in preview.");
+                        }
+                    }
+
+                    // Combine bundling errors with editor markers
+                    const markerErrors = editorMarkers
+                        .filter(marker => marker.severity === 8) // Error severity
+                        .map(marker => `${marker.message} (line ${marker.startLineNumber})`);
+
+                    setProblems([...newProblems, ...markerErrors]);
+                } catch (error) {
+                    console.error('Preview bundling error:', error);
+                    setBundlingErrors(['Preview bundling failed']);
+                    setProblems(['Preview bundling failed']);
                 }
-                setProblems(newProblems);
             }
         }, 800);
         return () => clearTimeout(timeout);
     }, [files]);
+
+    // Update problems when editor markers change
+    useEffect(() => {
+        const currentProblems = bundlingErrors.slice();
+
+        // Add editor markers as problems
+        const markerErrors = editorMarkers
+            .filter(marker => marker.severity === 8) // Error severity
+            .map(marker => `${marker.message} (line ${marker.startLineNumber})`);
+
+        // Add warnings too
+        const markerWarnings = editorMarkers
+            .filter(marker => marker.severity === 4) // Warning severity
+            .map(marker => `Warning: ${marker.message} (line ${marker.startLineNumber})`);
+
+        setProblems([...currentProblems, ...markerErrors, ...markerWarnings]);
+    }, [editorMarkers, bundlingErrors]);
 
     // File Operations
     const handleFileChange = useCallback((newContent: string) => {
@@ -266,7 +503,8 @@ const Editor: React.FC<EditorProps> = ({ project, onBack, onUpdate }) => {
 
         try {
             // Bundle all files for AI context
-            const currentBundled = bundlePreview(files);
+            const bundleResult = bundlePreview(files);
+            const currentBundled = bundleResult.html;
 
             let updatedCode = "";
             const stream = streamCodeEdit(currentBundled, userMsg);
@@ -292,6 +530,7 @@ const Editor: React.FC<EditorProps> = ({ project, onBack, onUpdate }) => {
                 onUpdate({
                     ...project,
                     code: updatedCode,
+                    files: files, // Include real file structure
                     chatHistory: finalHistory
                 });
 
@@ -309,15 +548,27 @@ const Editor: React.FC<EditorProps> = ({ project, onBack, onUpdate }) => {
 
     const handleSave = async () => {
         await flushAll(); // Flush all pending writes
-        const finalCode = bundlePreview(files);
-        onUpdate({ ...project, code: finalCode });
-        showToast("Project saved successfully!", 'success');
+        const bundleResult = bundlePreview(files);
+
+        // Update project with bundled code for backward compatibility
+        onUpdate({
+            ...project,
+            code: bundleResult.html,
+            files: files // Include the real file structure
+        });
+
+        // Show bundling errors as warnings
+        if (bundleResult.errors.length > 0) {
+            showToast(`Saved with warnings: ${bundleResult.errors.join(', ')}`, 'warning');
+        } else {
+            showToast("Project saved successfully!", 'success');
+        }
     };
 
     const handleExport = async () => {
         await flushAll();
-        const finalCode = bundlePreview(files);
-        const blob = new Blob([finalCode], { type: 'text/html' });
+        const bundleResult = bundlePreview(files);
+        const blob = new Blob([bundleResult.html], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -326,7 +577,12 @@ const Editor: React.FC<EditorProps> = ({ project, onBack, onUpdate }) => {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        showToast("Project exported successfully!", 'success');
+
+        if (bundleResult.errors.length > 0) {
+            showToast(`Exported with warnings: ${bundleResult.errors.join(', ')}`, 'warning');
+        } else {
+            showToast("Project exported successfully!", 'success');
+        }
     };
 
     const handleFormat = () => {
@@ -384,6 +640,17 @@ const Editor: React.FC<EditorProps> = ({ project, onBack, onUpdate }) => {
                     >
                         <Play size={14} /> Preview
                     </button>
+                    <button
+                        onClick={() => setViewMode('console')}
+                        className={`flex items-center gap-2 px-3 py-1 rounded text-xs font-medium transition-all ${viewMode === 'console' ? 'bg-[#27272a] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
+                    >
+                        <AlertCircle size={14} /> Console
+                        {consoleLogs.length > 0 && (
+                            <span className="bg-red-500 text-white text-xs px-1 rounded-full min-w-[16px] h-4 flex items-center justify-center">
+                                {consoleLogs.length}
+                            </span>
+                        )}
+                    </button>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -413,6 +680,7 @@ const Editor: React.FC<EditorProps> = ({ project, onBack, onUpdate }) => {
                             onSelectFile={setActiveFileId}
                             onCreateFile={handleCreateFile}
                             onDeleteFile={handleDeleteFile}
+                            onRenameFile={renameFile}
                             problems={problems}
                         />
                     )}
@@ -460,6 +728,8 @@ const Editor: React.FC<EditorProps> = ({ project, onBack, onUpdate }) => {
                                 code={activeFile?.content || ''}
                                 language={activeFile?.language || 'html'}
                                 onChange={(val) => val && handleFileChange(val)}
+                                markers={editorMarkers}
+                                onMarkersChange={setEditorMarkers}
                             />
                         </div>
                     </div>
@@ -566,6 +836,67 @@ const Editor: React.FC<EditorProps> = ({ project, onBack, onUpdate }) => {
                                     className="w-full h-full bg-white"
                                     sandbox="allow-scripts allow-modals allow-forms allow-popups"
                                 />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Console Panel */}
+                    <div className={`flex w-full h-full ${viewMode === 'console' ? 'flex' : 'hidden'}`}>
+                        <div className="flex-grow bg-[#18181b] flex flex-col">
+                            {/* Console Header */}
+                            <div className="p-4 border-b border-white/10 flex items-center justify-between bg-[#09090b]">
+                                <div className="flex items-center gap-2">
+                                    <AlertCircle size={16} className="text-gray-400" />
+                                    <span className="text-sm font-medium text-white">Console</span>
+                                    <span className="text-xs text-gray-500">({consoleLogs.length} logs)</span>
+                                </div>
+                                <button
+                                    onClick={clearConsoleLogs}
+                                    className="text-xs px-2 py-1 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded transition-colors"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+
+                            {/* Console Logs */}
+                            <div className="flex-grow overflow-y-auto p-4 space-y-2 font-mono text-xs">
+                                {consoleLogs.length === 0 ? (
+                                    <div className="text-center text-gray-500 py-8">
+                                        <AlertCircle size={24} className="mx-auto mb-2 opacity-50" />
+                                        <p>No console output yet</p>
+                                        <p className="text-xs mt-1">Run your code to see logs here</p>
+                                    </div>
+                                ) : (
+                                    consoleLogs.map((log, index) => (
+                                        <div
+                                            key={index}
+                                            className={`p-2 rounded border ${
+                                                log.type === 'error'
+                                                    ? 'bg-red-900/20 border-red-500/30 text-red-300'
+                                                    : log.type === 'warn'
+                                                    ? 'bg-yellow-900/20 border-yellow-500/30 text-yellow-300'
+                                                    : log.type === 'info'
+                                                    ? 'bg-blue-900/20 border-blue-500/30 text-blue-300'
+                                                    : 'bg-gray-900/20 border-gray-500/30 text-gray-300'
+                                            }`}
+                                        >
+                                            <div className="flex items-start gap-2">
+                                                <span className={`text-xs font-bold uppercase px-1 py-0.5 rounded ${
+                                                    log.type === 'error' ? 'bg-red-600 text-white' :
+                                                    log.type === 'warn' ? 'bg-yellow-600 text-white' :
+                                                    log.type === 'info' ? 'bg-blue-600 text-white' :
+                                                    'bg-gray-600 text-white'
+                                                }`}>
+                                                    {log.type}
+                                                </span>
+                                                <span className="flex-grow break-words">{log.message}</span>
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-1">
+                                                {new Date(log.timestamp).toLocaleTimeString()}
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         </div>
                     </div>

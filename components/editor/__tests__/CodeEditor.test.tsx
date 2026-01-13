@@ -1,11 +1,12 @@
 import { render, screen, fireEvent, waitFor } from '../../../src/test/utils';
-import CodeEditor from '../CodeEditor';
 import { vi } from 'vitest';
 
 // Mock Monaco Editor
 vi.mock('@monaco-editor/react', () => ({
   default: vi.fn(),
 }));
+
+import CodeEditor from '../CodeEditor';
 
 const mockEditor = vi.mocked(await import('@monaco-editor/react'));
 
@@ -31,11 +32,25 @@ describe('CodeEditor', () => {
     ));
   });
 
-  it('renders editor with correct props', () => {
+  it('renders editor with correct props', async () => {
+    MockEditor.mockImplementation((props: any) => (
+      <div data-testid="monaco-editor">
+        <div data-testid="editor-content">
+          {props.loading || 'Editor Content'}
+        </div>
+      </div>
+    ));
+
     render(<CodeEditor {...defaultProps} />);
 
-    const editor = screen.getByTestId('monaco-editor');
-    expect(editor).toBeInTheDocument();
+    // Should show loading state initially
+    expect(screen.getByText('Loading Code Editor...')).toBeInTheDocument();
+
+    // Wait for the Monaco Editor to load
+    await waitFor(() => {
+      const editor = screen.getByTestId('monaco-editor');
+      expect(editor).toBeInTheDocument();
+    });
 
     // Check that Monaco Editor was called with correct props
     expect(MockEditor).toHaveBeenCalledWith(
@@ -45,58 +60,104 @@ describe('CodeEditor', () => {
         language: 'html',
         value: defaultProps.code,
         theme: 'lovable-dark',
-        onChange: defaultProps.onChange,
+        onChange: expect.any(Function), // This is the debounced function
         onMount: expect.any(Function),
         options: expect.objectContaining({
           readOnly: false,
           wordWrap: 'on',
+          largeFileOptimizations: true,
+          maxTokenizationLineLength: 20000,
+          renderLineHighlight: 'line',
+          renderWhitespace: 'none',
+          wordBasedSuggestions: 'currentDocument',
         }),
+        loading: expect.any(Object), // Loading component
       }),
-      expect.any(Object)
+      undefined
     );
   });
 
-  it('maps languages correctly', () => {
+  it('maps languages correctly', async () => {
+    MockEditor.mockImplementation((props: any) => (
+      <div data-testid="monaco-editor">
+        <div data-testid="editor-content">
+          {props.loading || 'Editor Content'}
+        </div>
+      </div>
+    ));
+
     const { rerender } = render(<CodeEditor {...defaultProps} language="javascript" />);
 
-    expect(MockEditor).toHaveBeenCalledWith(
-      expect.objectContaining({ language: 'javascript', defaultLanguage: 'javascript' }),
-      expect.any(Object)
-    );
+    await waitFor(() => {
+      expect(MockEditor).toHaveBeenCalledWith(
+        expect.objectContaining({ language: 'javascript', defaultLanguage: 'javascript' }),
+        undefined
+      );
+    });
 
     rerender(<CodeEditor {...defaultProps} language="css" />);
-    expect(MockEditor).toHaveBeenLastCalledWith(
-      expect.objectContaining({ language: 'css', defaultLanguage: 'css' }),
-      expect.any(Object)
-    );
+    await waitFor(() => {
+      expect(MockEditor).toHaveBeenLastCalledWith(
+        expect.objectContaining({ language: 'css', defaultLanguage: 'css' }),
+        undefined
+      );
+    });
 
     rerender(<CodeEditor {...defaultProps} language="unknown" />);
-    expect(MockEditor).toHaveBeenLastCalledWith(
-      expect.objectContaining({ language: 'plaintext', defaultLanguage: 'plaintext' }),
-      expect.any(Object)
-    );
+    await waitFor(() => {
+      expect(MockEditor).toHaveBeenLastCalledWith(
+        expect.objectContaining({ language: 'plaintext', defaultLanguage: 'plaintext' }),
+        undefined
+      );
+    });
   });
 
-  it('handles readonly mode', () => {
+  it('handles readonly mode', async () => {
+    MockEditor.mockImplementation((props: any) => (
+      <div data-testid="monaco-editor">
+        <div data-testid="editor-content">
+          {props.loading || 'Editor Content'}
+        </div>
+      </div>
+    ));
+
     render(<CodeEditor {...defaultProps} readOnly={true} />);
 
-    expect(MockEditor).toHaveBeenCalledWith(
-      expect.objectContaining({
-        options: expect.objectContaining({
-          readOnly: true,
+    await waitFor(() => {
+      expect(MockEditor).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: expect.objectContaining({
+            readOnly: true,
+          }),
         }),
-      }),
-      expect.any(Object)
-    );
+        undefined
+      );
+    });
   });
 
-  it('calls onChange when content changes', () => {
+  it('calls onChange when content changes', async () => {
+    MockEditor.mockImplementation((props: any) => {
+      // Simulate Monaco Editor calling onChange
+      setTimeout(() => {
+        if (props.onChange) {
+          props.onChange('<html><body>Updated</body></html>');
+        }
+      }, 0);
+
+      return (
+        <div data-testid="monaco-editor">
+          <div data-testid="editor-content">
+            {props.loading || 'Editor Content'}
+          </div>
+        </div>
+      );
+    });
+
     render(<CodeEditor {...defaultProps} />);
 
-    const textarea = screen.getByTestId('editor-textarea');
-    fireEvent.change(textarea, { target: { value: '<html><body>Updated</body></html>' } });
-
-    expect(defaultProps.onChange).toHaveBeenCalledWith('<html><body>Updated</body></html>');
+    await waitFor(() => {
+      expect(defaultProps.onChange).toHaveBeenCalledWith('<html><body>Updated</body></html>');
+    });
   });
 
   it('shows loading state when loading', () => {
@@ -104,7 +165,7 @@ describe('CodeEditor', () => {
 
     render(<CodeEditor {...defaultProps} />);
 
-    expect(screen.getByText('Loading Editor...')).toBeInTheDocument();
+    expect(screen.getByText('Initializing Editor...')).toBeInTheDocument();
   });
 
   it('applies correct styling', () => {
@@ -114,13 +175,23 @@ describe('CodeEditor', () => {
     expect(container).toHaveClass('w-full', 'h-full', 'overflow-hidden', 'bg-[#1e1e1e]');
   });
 
-  it('handles empty code', () => {
+  it('handles empty code', async () => {
+    MockEditor.mockImplementation((props: any) => (
+      <div data-testid="monaco-editor">
+        <div data-testid="editor-content">
+          {props.loading || 'Editor Content'}
+        </div>
+      </div>
+    ));
+
     render(<CodeEditor {...defaultProps} code="" />);
 
-    expect(MockEditor).toHaveBeenCalledWith(
-      expect.objectContaining({ value: '' }),
-      expect.any(Object)
-    );
+    await waitFor(() => {
+      expect(MockEditor).toHaveBeenCalledWith(
+        expect.objectContaining({ value: '' }),
+        undefined
+      );
+    });
   });
 
   it('handles onMount callback', () => {
@@ -148,24 +219,41 @@ describe('CodeEditor', () => {
     expect(MockEditor).toHaveBeenCalled();
   });
 
-  it('configures editor with correct options', () => {
+  it('configures editor with correct options', async () => {
     let capturedOnMount: any;
 
-    MockEditor.mockImplementationOnce((props: any) => {
+    MockEditor.mockImplementation((props: any) => {
       capturedOnMount = props.onMount;
       return <div data-testid="monaco-editor" />;
     });
 
     render(<CodeEditor {...defaultProps} />);
 
+    await waitFor(() => {
+      expect(capturedOnMount).toBeDefined();
+    });
+
     const mockEditorInstance = {
       updateOptions: vi.fn(),
+      onDidChangeModelContent: vi.fn(() => ({ dispose: vi.fn() })),
+      getModel: vi.fn(() => ({
+        uri: { toString: () => 'file:///test.html' },
+        getValue: vi.fn(() => '<html><body>Hello World</body></html>'),
+        getLineLength: vi.fn(() => 50),
+      })),
     };
     const mockMonaco = {
       editor: {
         defineTheme: vi.fn(),
         setTheme: vi.fn(),
+        setModelMarkers: vi.fn(),
+        onDidChangeMarkers: vi.fn(() => ({ dispose: vi.fn() })),
+        getModelMarkers: vi.fn(() => []),
       },
+      MarkerSeverity: {
+        Error: 8,
+        Warning: 4,
+      }
     };
 
     capturedOnMount(mockEditorInstance, mockMonaco);
@@ -198,12 +286,28 @@ describe('CodeEditor', () => {
     expect(mockMonaco.editor.setTheme).toHaveBeenCalledWith('lovable-dark');
   });
 
-  it('handles undefined onChange', () => {
+  it('handles undefined onChange', async () => {
+    MockEditor.mockImplementation((props: any) => {
+      // Simulate Monaco Editor calling onChange
+      setTimeout(() => {
+        if (props.onChange) {
+          props.onChange('test');
+        }
+      }, 0);
+
+      return (
+        <div data-testid="monaco-editor">
+          <div data-testid="editor-content">
+            {props.loading || 'Editor Content'}
+          </div>
+        </div>
+      );
+    });
+
     render(<CodeEditor {...defaultProps} />);
 
-    const textarea = screen.getByTestId('editor-textarea');
-    fireEvent.change(textarea, { target: { value: 'test' } });
-
-    expect(defaultProps.onChange).toHaveBeenCalledWith('test');
+    await waitFor(() => {
+      expect(defaultProps.onChange).toHaveBeenCalledWith('test');
+    });
   });
 });

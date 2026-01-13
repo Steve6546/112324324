@@ -196,11 +196,12 @@ function App() {
     };
 
     const handleOpenProject = (project: Project) => {
-        if (project.code) {
+        // Allow opening any valid project - the Editor component will handle loading/creating files
+        if (project && project.id) {
             setActiveProject(project);
             setCurrentView('editor');
         } else {
-            alert("Project data unavailable.");
+            alert("Invalid project data.");
         }
     }
 

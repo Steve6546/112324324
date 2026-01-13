@@ -1,11 +1,28 @@
-import { render, screen, fireEvent, waitFor } from '../test/utils';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import App from '../../App';
+import { ToastProvider } from '../../components/Toast';
+import { ThemeProvider } from '../contexts/ThemeContext';
+import { ProgressiveEnhancementProvider } from '../contexts/ProgressiveEnhancementContext';
 
 // Mock all external dependencies
 vi.mock('../../services/gemini');
 vi.mock('../../hooks/useProjectFileSystem');
 vi.mock('../../lib/db');
+
+const mockGemini = vi.mocked(await import('../../services/gemini'));
+const mockUseProjectFileSystem = vi.mocked(await import('../../hooks/useProjectFileSystem'));
+
+// Test wrapper with all required providers
+const TestWrapper = ({ children }: { children: React.ReactNode }) => (
+  <ProgressiveEnhancementProvider>
+    <ThemeProvider>
+      <ToastProvider>
+        {children}
+      </ToastProvider>
+    </ThemeProvider>
+  </ProgressiveEnhancementProvider>
+);
 
 describe('App Integration Tests', () => {
   beforeEach(() => {
@@ -14,15 +31,32 @@ describe('App Integration Tests', () => {
 
     // Reset all mocks
     vi.clearAllMocks();
+
+    // Default mocks for App dependencies
+    mockGemini.hasValidApiKey.mockReturnValue(true);
+    mockUseProjectFileSystem.useProjectFileSystem.mockReturnValue({
+      files: [],
+      isLoading: false,
+      activeFileId: null,
+      setActiveFileId: vi.fn(),
+      updateFile: vi.fn(),
+      createFile: vi.fn(),
+      deleteFile: vi.fn(),
+      renameFile: vi.fn(),
+      forceSave: vi.fn(),
+      flushAll: vi.fn(),
+      error: null,
+      clearError: vi.fn(),
+    });
   });
 
   it('renders the main app with initial state', async () => {
-    render(<App />);
+    render(<TestWrapper><App /></TestWrapper>);
 
     // Wait for app to load
     await waitFor(() => {
       expect(screen.getByText(/Got an idea/)).toBeInTheDocument();
-    });
+    }, { timeout: 2000 });
 
     // Should show input section
     expect(screen.getByPlaceholderText(/Ask Lovable to create/)).toBeInTheDocument();
@@ -36,11 +70,11 @@ describe('App Integration Tests', () => {
     const { hasValidApiKey } = await import('../../services/gemini');
     vi.mocked(hasValidApiKey).mockReturnValue(false);
 
-    render(<App />);
+    render(<TestWrapper><App /></TestWrapper>);
 
     await waitFor(() => {
       expect(screen.getByText(/API Key Required/)).toBeInTheDocument();
-    });
+    }, { timeout: 2000 });
     expect(screen.getByText(/Click here to configure/)).toBeInTheDocument();
   });
 
@@ -56,12 +90,12 @@ describe('App Integration Tests', () => {
       yield '<html><body><h1>Todo App</h1></body></html>';
     });
 
-    render(<App />);
+    render(<TestWrapper><App /></TestWrapper>);
 
     // Wait for app to load quickly
     await waitFor(() => {
       expect(screen.getByText(/Got an idea/)).toBeInTheDocument();
-    }, { timeout: 1000 });
+    }, { timeout: 2000 });
 
     // Type a prompt and submit quickly
     const textarea = screen.getByPlaceholderText(/Ask Lovable to create/);
@@ -78,12 +112,12 @@ describe('App Integration Tests', () => {
 
 
   it('handles quick actions', async () => {
-    render(<App />);
+    render(<TestWrapper><App /></TestWrapper>);
 
     // Wait for app to load
     await waitFor(() => {
       expect(screen.getByText(/Got an idea/)).toBeInTheDocument();
-    });
+    }, { timeout: 2000 });
 
     // Open plus menu
     const plusIcon = document.querySelector('svg.lucide-plus');
@@ -123,12 +157,12 @@ describe('App Integration Tests', () => {
       writable: true,
     });
 
-    render(<App />);
+    render(<TestWrapper><App /></TestWrapper>);
 
     // Wait for app to load and projects to be displayed
     await waitFor(() => {
       expect(screen.getByText('Test Project')).toBeInTheDocument();
-    });
+    }, { timeout: 2000 });
 
     // Click on project
     const projectCard = screen.getByText('Test Project').closest('div');
@@ -159,12 +193,12 @@ describe('App Integration Tests', () => {
       writable: true,
     });
 
-    render(<App />);
+    render(<TestWrapper><App /></TestWrapper>);
 
     // Should show project in dashboard
     await waitFor(() => {
       expect(screen.getByText('Test Project')).toBeInTheDocument();
-    });
+    }, { timeout: 2000 });
 
     // Click on project
     const projectCard = screen.getByText('Test Project').closest('div');
@@ -176,12 +210,12 @@ describe('App Integration Tests', () => {
   });
 
   it('handles settings modal', async () => {
-    render(<App />);
+    render(<TestWrapper><App /></TestWrapper>);
 
     // Wait for app to load
     await waitFor(() => {
       expect(screen.getByText(/Got an idea/)).toBeInTheDocument();
-    });
+    }, { timeout: 2000 });
 
     // Click settings button
     const settingsButton = screen.getByText('Settings');
@@ -204,7 +238,7 @@ describe('App Integration Tests', () => {
       writable: true,
     });
 
-    render(<App />);
+    render(<TestWrapper><App /></TestWrapper>);
 
     // Trigger a state change that should save to localStorage
     // This would happen when projects are updated

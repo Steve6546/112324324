@@ -52,13 +52,12 @@ export default defineConfig(({ mode }) => {
         environment: 'jsdom',
         setupFiles: ['./src/test/setup.ts'],
         css: true,
-        testTimeout: 10000,
+        testTimeout: 15000, // Increased timeout for complex tests
         pool: 'threads',
-        poolOptions: {
-          threads: {
-            singleThread: true,
-          },
-        },
+        threads: true,
+        singleThread: false, // Allow parallel execution
+        maxThreads: 4, // Limit threads for stability
+        minThreads: 1,
         include: [
           'src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
           'components/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',

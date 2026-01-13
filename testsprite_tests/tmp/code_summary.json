@@ -1,0 +1,109 @@
+{
+  "tech_stack": [
+    "React 19.2.3",
+    "TypeScript 5.9.3",
+    "Vite 6.4.1",
+    "Tailwind CSS 3.4.19",
+    "Monaco Editor 4.7.0",
+    "Google Gemini API 1.35.0",
+    "IndexedDB (idb 8.0.3)",
+    "Vitest 4.0.17",
+    "React Testing Library",
+    "Playwright 1.57.0",
+    "ESLint 9.39.2"
+  ],
+  "features": [
+    {
+      "name": "AI Code Generation",
+      "description": "Generate complete HTML/CSS/JS apps from natural language prompts using Google Gemini AI",
+      "files": ["src/services/gemini.ts", "src/components/InputSection.tsx", "src/components/BuildingScreen.tsx"]
+    },
+    {
+      "name": "Monaco Editor",
+      "description": "Professional VS Code-like editing experience with syntax highlighting and file management",
+      "files": ["src/components/editor/CodeEditor.tsx", "src/components/editor/FileExplorer.tsx", "src/components/Editor.tsx"]
+    },
+    {
+      "name": "Live Preview",
+      "description": "Real-time sandboxed preview of applications with iframe isolation",
+      "files": ["src/components/Editor.tsx", "index.html"]
+    },
+    {
+      "name": "IndexedDB Storage",
+      "description": "Full file system persistence with migration support and data integrity",
+      "files": ["src/lib/db.ts", "src/hooks/useProjectFileSystem.ts"]
+    },
+    {
+      "name": "Multi-File Support",
+      "description": "Virtual file system with HTML, CSS, and JavaScript files management",
+      "files": ["src/hooks/useProjectFileSystem.ts", "src/components/editor/FileExplorer.tsx"]
+    },
+    {
+      "name": "Settings Modal",
+      "description": "AI model and API key configuration with multiple Gemini options",
+      "files": ["src/components/SettingsModal.tsx"]
+    },
+    {
+      "name": "Theme System",
+      "description": "Light, dark, and system theme support with automatic detection",
+      "files": ["src/contexts/ThemeContext.tsx", "tailwind.config.js"]
+    },
+    {
+      "name": "Toast Notifications",
+      "description": "Clean feedback system with different notification types",
+      "files": ["src/components/Toast.tsx"]
+    },
+    {
+      "name": "AI Chat Interface",
+      "description": "Conversational AI for project refinement and modification",
+      "files": ["src/components/Editor.tsx", "src/services/gemini.ts"]
+    },
+    {
+      "name": "Mobile-First Design",
+      "description": "Responsive design optimized for mobile devices with touch-first approach",
+      "files": ["src/App.tsx", "src/components/ProjectDashboard.tsx", "src/components/InputSection.tsx"]
+    },
+    {
+      "name": "Touch Interactions",
+      "description": "Enhanced touch gestures, haptic feedback, swipe-to-delete, and long-press actions",
+      "files": ["src/hooks/useTouchGestures.ts", "src/contexts/ProgressiveEnhancementContext.tsx"]
+    },
+    {
+      "name": "Voice Commands",
+      "description": "Multi-language voice input with Arabic and English support",
+      "files": ["src/hooks/useVoiceCommands.ts"]
+    },
+    {
+      "name": "Progressive Enhancement",
+      "description": "Automatic adaptation to device capabilities with enhancement levels",
+      "files": ["src/contexts/ProgressiveEnhancementContext.tsx", "src/hooks/useDeviceCapabilities.ts"]
+    },
+    {
+      "name": "Code Formatting",
+      "description": "Built-in code formatting with language-specific rules",
+      "files": ["src/utils/formatter.ts"]
+    },
+    {
+      "name": "Project Management",
+      "description": "Project organization with categories, starring, and advanced filtering",
+      "files": ["src/components/ProjectDashboard.tsx", "src/components/ProjectCard.tsx"]
+    },
+    {
+      "name": "Real-time Sync",
+      "description": "Auto-save functionality with debounced writes and conflict resolution",
+      "files": ["src/hooks/useProjectFileSystem.ts", "src/lib/db.ts"]
+    },
+    {
+      "name": "Testing Framework",
+      "description": "Comprehensive testing with unit, integration, and E2E tests using Vitest and Playwright",
+      "files": [
+        "src/__tests__/",
+        "src/components/__tests__/",
+        "src/hooks/__tests__/",
+        "src/lib/__tests__/",
+        "src/services/__tests__/",
+        "src/test/"
+      ]
+    }
+  ]
+}
