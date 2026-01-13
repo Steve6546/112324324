@@ -28,7 +28,18 @@ const bundlePreview = (files: FileNode[]): string => {
     const cssFiles = files.filter(f => f.language === 'css' && f.name !== 'index.html');
     const jsFiles = files.filter(f => f.language === 'javascript' && f.name !== 'index.html');
 
-    let bundled = indexHtml;
+    // Remove Tailwind CDN references from HTML content
+    let bundled = indexHtml
+        .replace(/<script[^>]*src=["'][^"']*cdn\.tailwindcss\.com[^"']*["'][^>]*><\/script>/gi, '')
+        .replace(/<link[^>]*href=["'][^"']*cdn\.tailwindcss\.com[^"']*["'][^>]*>/gi, '');
+
+    // Process inline scripts for tailwind.config assignments only (minimal fix)
+    bundled = bundled.replace(/(<script[^>]*>)([\s\S]*?)<\/script>/gi, (match, openTag, scriptContent) => {
+        let processedContent = scriptContent;
+        // Only replace tailwind.config = ... patterns that cause errors
+        processedContent = processedContent.replace(/tailwind\.config\s*=\s*/g, 'window.tailwind.config = ');
+        return openTag + processedContent + '</script>';
+    });
 
     // Only inject CSS if not already in original HTML
     cssFiles.forEach(file => {
@@ -42,9 +53,71 @@ const bundlePreview = (files: FileNode[]): string => {
         }
     });
 
+    // Inject minimal polyfills for iframe compatibility
+    const polyfills = `<script>
+(function() {
+    // Only define tailwind.config if it doesn't exist to prevent "Cannot set properties of undefined" errors
+    if (typeof window.tailwind === 'undefined') {
+        window.tailwind = { config: {} };
+    } else if (typeof window.tailwind.config === 'undefined') {
+        window.tailwind.config = {};
+    }
+
+    // CommonJS require polyfill for @tailwindcss plugins
+    var modules = {};
+    var require = function(id) {
+        if (modules[id]) return modules[id].exports;
+        if (id === 'console') return console;
+        if (id === 'window') return window;
+        if (id === 'document') return document;
+        // Handle common Tailwind plugins that might be required
+        if (id === '@tailwindcss/forms') return {};
+        if (id === '@tailwindcss/typography') return {};
+        if (id === '@tailwindcss/aspect-ratio') return {};
+        if (id.startsWith('@tailwindcss/')) return {};
+        throw new Error('Module ' + id + ' not found');
+    };
+    require.register = function(id, fn) {
+        modules[id] = { exports: {} };
+        fn.call(modules[id].exports, require, modules[id].exports, modules[id]);
+    };
+    window.require = require;
+
+    // Prevent history API errors in sandboxed iframe
+    var originalPushState = history.pushState;
+    var originalReplaceState = history.replaceState;
+    history.pushState = function(state, title, url) {
+        try {
+            return originalPushState.apply(this, arguments);
+        } catch (e) {
+            console.warn('History.pushState blocked in sandboxed iframe:', e.message);
+        }
+    };
+    history.replaceState = function(state, title, url) {
+        try {
+            return originalReplaceState.apply(this, arguments);
+        } catch (e) {
+            console.warn('History.replaceState blocked in sandboxed iframe:', e.message);
+        }
+    };
+})();
+</script>`;
+
+    // Inject polyfills immediately after <html> tag for earliest execution
+    if (bundled.includes('<html>')) {
+        bundled = bundled.replace('<html>', '<html>' + polyfills);
+    } else if (bundled.includes('<head>')) {
+        bundled = bundled.replace('<head>', polyfills + '<head>');
+    } else {
+        bundled = polyfills + bundled;
+    }
+
     // Only inject JS if not already in original HTML
     jsFiles.forEach(file => {
-        const jsContent = file.content.trim();
+        let jsContent = file.content.trim();
+        // Only replace tailwind.config assignments that cause "Cannot set properties of undefined" errors
+        jsContent = jsContent.replace(/tailwind\.config\s*=\s*/g, 'window.tailwind.config = ');
+
         if (jsContent && !bundled.includes(jsContent.substring(0, 50))) {
             if (bundled.includes('</body>')) {
                 bundled = bundled.replace('</body>', `<script>${jsContent}</script></body>`);
@@ -106,6 +179,27 @@ const Editor: React.FC<EditorProps> = ({ project, onBack, onUpdate }) => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [chatHistory, isEditing]);
 
+    // Keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch (e.key) {
+                    case 's':
+                        e.preventDefault();
+                        handleSave();
+                        break;
+                    case 'b':
+                        e.preventDefault();
+                        handleFormat();
+                        break;
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
     // Live Preview Update (Debounced)
     useEffect(() => {
         const timeout = setTimeout(() => {
@@ -131,11 +225,8 @@ const Editor: React.FC<EditorProps> = ({ project, onBack, onUpdate }) => {
         }
     }, [activeFileId, updateFile]);
 
-    const handleCreateFile = async () => {
-        const name = prompt("Enter file name (e.g., page2.html, style.css):");
-        if (!name) return;
-
-        const result = await dbCreateFile(name.trim(), true); // autoSuffix enabled
+    const handleCreateFile = async (fileName: string) => {
+        const result = await dbCreateFile(fileName, true); // autoSuffix enabled
         if (result) {
             showToast(`Created ${result.name}`, 'success');
         }
@@ -240,7 +331,8 @@ const Editor: React.FC<EditorProps> = ({ project, onBack, onUpdate }) => {
 
     const handleFormat = () => {
         if (!activeFile) return;
-        const formatted = formatCode(activeFile.content, activeFile.language);
+        const language = activeFile.language as 'html' | 'css' | 'javascript';
+        const formatted = formatCode(activeFile.content, language);
         handleFileChange(formatted);
         showToast("Code formatted", 'success');
     };
@@ -295,8 +387,11 @@ const Editor: React.FC<EditorProps> = ({ project, onBack, onUpdate }) => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <button onClick={handleSave} className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-md" title="Save Project">
+                    <button onClick={handleSave} className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-md relative group" title="Save Project (Ctrl+S)">
                         <Save size={16} />
+                        <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                            Ctrl+S
+                        </div>
                     </button>
                     <button onClick={handleExport} className="px-3 py-1.5 rounded-md text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white transition-colors flex items-center gap-2 shadow-sm">
                         <Download size={14} /> Export
@@ -347,8 +442,11 @@ const Editor: React.FC<EditorProps> = ({ project, onBack, onUpdate }) => {
                                 ))}
                             </div>
                             <div className="flex items-center gap-3">
-                                <button onClick={handleFormat} className="text-gray-500 hover:text-white" title="Format Code">
+                                <button onClick={handleFormat} className="text-gray-500 hover:text-white relative group" title="Format Code (Ctrl+B)">
                                     <Edit3 size={14} />
+                                    <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                                        Ctrl+B
+                                    </div>
                                 </button>
                                 <button onClick={() => setExplorerOpen(!explorerOpen)} className="text-gray-500 hover:text-white" title="Toggle Explorer">
                                     <FolderOpen size={14} />
@@ -466,7 +564,7 @@ const Editor: React.FC<EditorProps> = ({ project, onBack, onUpdate }) => {
                                     ref={iframeRef}
                                     title="Project Preview"
                                     className="w-full h-full bg-white"
-                                    sandbox="allow-scripts allow-modals allow-forms allow-same-origin allow-popups"
+                                    sandbox="allow-scripts allow-modals allow-forms allow-popups"
                                 />
                             </div>
                         </div>

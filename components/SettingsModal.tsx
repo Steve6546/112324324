@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Key, Cpu, AlertTriangle, CheckCircle } from 'lucide-react';
+import { X, Save, Key, Cpu, AlertTriangle, CheckCircle, ChevronDown, Check } from 'lucide-react';
 import { AVAILABLE_MODELS, saveSettings, ModelInfo } from '../services/gemini';
 
 interface SettingsModalProps {
@@ -7,12 +7,13 @@ interface SettingsModalProps {
     onClose: () => void;
 }
 
-const DEFAULT_MODEL = 'gemini-2.0-flash';
+const DEFAULT_MODEL = 'gemini-3-flash';
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     const [apiKey, setApiKey] = useState('');
     const [modelId, setModelId] = useState(DEFAULT_MODEL);
     const [saved, setSaved] = useState(false);
+    const [showModelDropdown, setShowModelDropdown] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -21,8 +22,26 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             setApiKey(storedKey);
             setModelId(storedModel);
             setSaved(false);
+            setShowModelDropdown(false);
         }
     }, [isOpen]);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (showModelDropdown && !(event.target as Element).closest('.model-dropdown-container')) {
+                setShowModelDropdown(false);
+            }
+        };
+
+        if (showModelDropdown) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showModelDropdown]);
 
     const handleSave = () => {
         saveSettings(apiKey, modelId);
@@ -76,38 +95,58 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                         <label className="text-xs font-medium text-gray-400 uppercase tracking-wider flex items-center gap-2">
                             <Cpu size={12} /> Model Selection
                         </label>
-                        <div className="grid gap-2">
-                            {AVAILABLE_MODELS.map((model) => (
-                                <button
-                                    key={model.id}
-                                    onClick={() => setModelId(model.id)}
-                                    className={`w-full text-left px-4 py-3 rounded-lg border transition-all ${modelId === model.id
-                                        ? 'bg-blue-600/10 border-blue-500/50'
-                                        : 'bg-[#09090b] border-white/5 hover:border-white/20'
-                                        }`}
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <span className={`text-sm font-medium ${modelId === model.id ? 'text-blue-100' : 'text-gray-300'}`}>
-                                                {model.displayName}
-                                            </span>
-                                            {model.tier === 'paid' && (
-                                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-medium uppercase">
-                                                    Paid
-                                                </span>
-                                            )}
-                                        </div>
-                                        {modelId === model.id && (
-                                            <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
-                                        )}
-                                    </div>
-                                    <p className="text-[11px] text-gray-500 mt-1">{model.description}</p>
-                                    <p className="text-[9px] text-gray-600 mt-1 font-mono">{model.id}</p>
-                                </button>
-                            ))}
+
+                        {/* Dropdown Button */}
+                        <div className="relative model-dropdown-container">
+                            <button
+                                onClick={() => setShowModelDropdown(!showModelDropdown)}
+                                className="w-full bg-[#09090b] border border-white/10 rounded-lg px-4 py-3 text-left flex items-center justify-between hover:border-white/20 transition-all"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm text-gray-300">
+                                        {selectedModel?.displayName || 'اختر نموذج'}
+                                    </span>
+                                    {selectedModel?.tier === 'paid' && (
+                                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-medium uppercase">
+                                            Paid
+                                        </span>
+                                    )}
+                                </div>
+                                <ChevronDown size={16} className={`text-gray-400 transition-transform ${showModelDropdown ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {/* Dropdown Menu */}
+                            {showModelDropdown && (
+                                <div className="absolute top-full left-0 right-0 mt-1 bg-[#09090b] border border-white/10 rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto">
+                                    {AVAILABLE_MODELS.map((model) => (
+                                        <button
+                                            key={model.id}
+                                            onClick={() => {
+                                                setModelId(model.id);
+                                                setShowModelDropdown(false);
+                                            }}
+                                            className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-b-0"
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <div className="text-sm text-gray-300 font-medium">
+                                                        {model.displayName}
+                                                    </div>
+                                                    <div className="text-[11px] text-gray-500">
+                                                        {model.description}
+                                                    </div>
+                                                </div>
+                                                {modelId === model.id && (
+                                                    <Check size={14} className="text-blue-500" />
+                                                )}
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
-                        {/* Selected Model Display */}
+                        {/* Selected Model Info */}
                         {selectedModel && (
                             <div className="bg-[#09090b] rounded-lg p-3 border border-white/5">
                                 <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Active Model ID</div>

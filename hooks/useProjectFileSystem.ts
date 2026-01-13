@@ -111,22 +111,25 @@ export const useProjectFileSystem = (project: Project) => {
                     const legacyFiles = parseProjectCodeLegacy(project.code);
                     const newNodes = convertVirtualFilesToNodes(project.id, legacyFiles);
 
+                    let migratedCount = 0;
                     for (const node of newNodes) {
                         try {
                             await db.createFile(node);
+                            migratedCount++;
                         } catch (e: any) {
                             // Handle collision during migration
                             if (e.message?.includes('already exists')) {
                                 console.warn(`[Migration] Skipping duplicate: ${node.path}`);
                             } else {
-                                throw e;
+                                console.error(`[Migration] Failed to migrate file ${node.name}:`, e);
+                                throw new Error(`Migration failed for file ${node.name}: ${e.message}`);
                             }
                         }
                     }
 
                     // Mark migration complete
                     await db.setMigrated(project.id);
-                    console.log(`[Migration] Project ${project.id} migrated successfully.`);
+                    console.log(`[Migration] Project ${project.id} migrated successfully (${migratedCount} files).`);
 
                     setFiles(newNodes);
                     if (newNodes.length > 0) setActiveFileId(newNodes[0].id);
@@ -136,7 +139,10 @@ export const useProjectFileSystem = (project: Project) => {
                 }
             } catch (err: any) {
                 console.error("Failed to load project files:", err);
-                setError(err.message || 'Failed to load files');
+                const errorMessage = err.message?.includes('Migration failed')
+                    ? `Failed to load project: ${err.message}`
+                    : err.message || 'Failed to load project files. Please try refreshing the page.';
+                setError(errorMessage);
             } finally {
                 setIsLoading(false);
             }

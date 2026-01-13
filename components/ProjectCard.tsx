@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Project } from '../types';
-import { MoreHorizontal, Star, Trash2, Edit, Check, X } from 'lucide-react';
+import { MoreHorizontal, Star, Trash2, Edit, Check, X, Copy } from 'lucide-react';
 
 interface ProjectCardProps {
     project: Project;
@@ -8,9 +8,10 @@ interface ProjectCardProps {
     onDelete: (id: string) => void;
     onRename: (id: string, newTitle: string) => void;
     onStar: (id: string) => void;
+    onDuplicate?: (project: Project) => void;
 }
 
-const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick, onDelete, onRename, onStar }) => {
+const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick, onDelete, onRename, onStar, onDuplicate }) => {
     const [showMenu, setShowMenu] = useState(false);
     const [isRenaming, setIsRenaming] = useState(false);
     const [editTitle, setEditTitle] = useState(project.title);
@@ -67,101 +68,108 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick, onDelete, o
 
     return (
         <div
-            onClick={() => !isRenaming && onClick(project)}
-            className="group relative flex flex-col bg-[#1C1C1E] hover:bg-[#2C2C2E] transition-colors rounded-xl overflow-hidden cursor-pointer border border-white/5 hover:border-white/10"
+            onClick={() => !isRenaming && !showMenu && onClick(project)}
+            className="group flex flex-col bg-[var(--bg-tertiary)] hover:bg-[var(--bg-accent)] transition-colors rounded-xl overflow-hidden cursor-pointer border border-[var(--border-primary)] hover:border-[var(--border-secondary)] min-w-0 w-full"
         >
             {/* Thumbnail Area */}
-            <div className="relative aspect-[16/10] bg-[#2C2C2E] overflow-hidden">
+            <div className="aspect-[16/10] bg-[var(--bg-accent)] overflow-hidden">
                 {project.thumbnailUrl ? (
                     <img
                         src={project.thumbnailUrl}
                         alt={project.title}
-                        className="w-full h-full object-cover opacity-80 group-hover:opacity-40 group-hover:scale-105 transition-all duration-500"
+                        className="w-full h-full object-cover opacity-80 group-hover:opacity-60 transition-opacity duration-300"
                     />
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-500 group-hover:opacity-40 transition-opacity bg-gradient-to-br from-gray-800 to-black">
-                        <span className="text-4xl">✨</span>
+                    <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] bg-gradient-to-br from-[var(--bg-tertiary)] to-[var(--bg-secondary)]">
+                        <span className="text-3xl sm:text-4xl">✨</span>
                     </div>
                 )}
-
-                {/* Open Button (Visible on Hover) */}
-                {!isRenaming && (
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-4 group-hover:translate-y-0">
-                        <button className="bg-white text-black px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 shadow-xl hover:scale-105 transition-transform">
-                            Open Project
-                        </button>
-                    </div>
-                )}
-
-                {/* Star Icon */}
-                <button
-                    onClick={(e) => { e.stopPropagation(); onStar(project.id); }}
-                    className={`absolute top-3 right-3 p-1.5 rounded-lg transition-all backdrop-blur-sm z-10 ${project.isStarred
-                            ? 'bg-yellow-500/20 text-yellow-400 opacity-100'
-                            : 'bg-black/40 hover:bg-black/60 text-white/70 hover:text-white opacity-0 group-hover:opacity-100'
-                        }`}
-                >
-                    <Star size={16} fill={project.isStarred ? 'currentColor' : 'none'} />
-                </button>
             </div>
 
             {/* Content Area */}
-            <div className="p-4 flex flex-col gap-1 relative">
-                <div className="flex justify-between items-start min-h-[24px]">
-                    {isRenaming ? (
-                        <div className="flex items-center gap-1 w-full" onClick={(e) => e.stopPropagation()}>
-                            <input
-                                ref={inputRef}
-                                value={editTitle}
-                                onChange={(e) => setEditTitle(e.target.value)}
-                                onKeyDown={handleKeyDown}
-                                className="bg-[#09090b] text-white text-sm px-2 py-1 rounded border border-blue-500/50 focus:outline-none w-full"
-                            />
-                            <button onClick={handleRenameSubmit} className="text-green-400 hover:bg-green-400/10 p-1 rounded">
-                                <Check size={14} />
-                            </button>
-                            <button onClick={handleRenameCancel} className="text-red-400 hover:bg-red-400/10 p-1 rounded">
-                                <X size={14} />
-                            </button>
-                        </div>
-                    ) : (
-                        <h3 className="text-white font-medium text-sm truncate pr-4">{project.title}</h3>
+            <div className="p-3 sm:p-4 flex flex-col gap-2 sm:gap-3">
+                {/* Header with Title and Star */}
+                <div className="flex justify-between items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                        {isRenaming ? (
+                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                    ref={inputRef}
+                                    value={editTitle}
+                                    onChange={(e) => setEditTitle(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    className="bg-[#09090b] text-white text-sm px-2 py-1 rounded border border-blue-500/50 focus:outline-none w-full"
+                                    placeholder="Project title..."
+                                />
+                                <button onClick={handleRenameSubmit} className="text-green-400 hover:bg-green-400/10 p-1 rounded flex-shrink-0">
+                                    <Check size={14} />
+                                </button>
+                                <button onClick={handleRenameCancel} className="text-red-400 hover:bg-red-400/10 p-1 rounded flex-shrink-0">
+                                    <X size={14} />
+                                </button>
+                            </div>
+                        ) : (
+                            <h3 className="text-[var(--text-primary)] font-medium text-sm break-words">{project.title}</h3>
+                        )}
+                    </div>
+
+                    {!isRenaming && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onStar(project.id); }}
+                            className={`p-1.5 rounded-lg transition-colors flex-shrink-0 ${
+                                project.isStarred
+                                    ? 'bg-yellow-500/20 text-yellow-400'
+                                    : 'text-[var(--text-muted)] hover:text-yellow-400 hover:bg-yellow-500/10'
+                            }`}
+                        >
+                            <Star size={16} fill={project.isStarred ? 'currentColor' : 'none'} />
+                        </button>
                     )}
                 </div>
 
-                <div className="flex items-center gap-2 mt-2">
-                    <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center overflow-hidden border border-black/20">
+                {/* Author Info */}
+                <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center overflow-hidden border border-black/20 flex-shrink-0">
                         {project.authorAvatar ? (
                             <img src={project.authorAvatar} alt={project.authorName} className="w-full h-full object-cover" />
                         ) : (
                             <span className="text-[10px] text-white font-bold">{project.authorName.charAt(0)}</span>
                         )}
                     </div>
-                    <div className="flex flex-col">
-                        <span className="text-gray-400 text-xs">{project.authorName}</span>
+                    <div className="flex flex-col min-w-0">
+                        <span className="text-[var(--text-muted)] text-xs break-words">{project.authorName}</span>
+                        <span className="text-[var(--text-muted)] text-xs">Viewed {project.viewedAt}</span>
                     </div>
                 </div>
-                <p className="text-gray-500 text-xs mt-0.5">Viewed {project.viewedAt}</p>
 
-                {/* Context Menu Trigger */}
-                <div className="absolute bottom-4 right-4 text-gray-400 hover:text-white hover:bg-white/10 p-1 rounded z-20" onClick={handleMenuClick}>
-                    <MoreHorizontal size={16} />
-                </div>
+                {/* Actions Row */}
+                {!isRenaming && (
+                    <div className="flex justify-between items-center pt-1">
+                        <div className="flex gap-1 sm:gap-2">
+                            {onDuplicate && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onDuplicate(project); }}
+                                    className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-accent)] p-1 sm:p-1.5 rounded transition-colors"
+                                    title="Duplicate project"
+                                >
+                                    <Copy size={12} className="sm:w-[14px] sm:h-[14px]" />
+                                </button>
+                            )}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setIsRenaming(true); }}
+                                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-accent)] p-1 sm:p-1.5 rounded transition-colors"
+                                title="Rename project"
+                            >
+                                <Edit size={12} className="sm:w-[14px] sm:h-[14px]" />
+                            </button>
+                        </div>
 
-                {/* Dropdown Menu */}
-                {showMenu && (
-                    <div ref={menuRef} className="absolute bottom-10 right-0 w-32 bg-[#1f1f22] border border-white/10 rounded-lg shadow-xl overflow-hidden z-30 animate-fade-in">
-                        <button
-                            onClick={(e) => { e.stopPropagation(); setShowMenu(false); setIsRenaming(true); }}
-                            className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:bg-white/10 flex items-center gap-2"
-                        >
-                            <Edit size={12} /> Rename
-                        </button>
                         <button
                             onClick={(e) => { e.stopPropagation(); onDelete(project.id); }}
-                            className="w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2"
+                            className="text-[var(--red-primary)] hover:bg-[var(--red-primary)]/10 p-1 sm:p-1.5 rounded transition-colors"
+                            title="Delete project"
                         >
-                            <Trash2 size={12} /> Delete
+                            <Trash2 size={12} className="sm:w-[14px] sm:h-[14px]" />
                         </button>
                     </div>
                 )}

@@ -9,9 +9,10 @@ interface ProjectDashboardProps {
   onDeleteProject: (id: string) => void;
   onRenameProject: (id: string, newTitle: string) => void;
   onStarProject: (id: string) => void;
+  onDuplicateProject: (project: Project) => void;
 }
 
-const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projects, onProjectClick, onDeleteProject, onRenameProject, onStarProject }) => {
+const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projects, onProjectClick, onDeleteProject, onRenameProject, onStarProject, onDuplicateProject }) => {
   const [activeTab, setActiveTab] = useState<Tab>(Tab.RECENTLY_VIEWED);
 
   const filteredProjects = useMemo(() => {
@@ -30,7 +31,7 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projects, onProject
   }, [activeTab, projects]);
 
   return (
-    <div className="w-full bg-[#09090b] min-h-[60vh] rounded-t-[32px] border-t border-white/10 shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.5)] p-6 md:p-10 animate-slide-up relative z-10 transition-all duration-500">
+    <div className="w-full bg-[var(--bg-secondary)] min-h-[50vh] sm:min-h-[60vh] rounded-t-2xl sm:rounded-t-[32px] border-t border-[var(--border-primary)] shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.5)] p-4 sm:p-6 md:p-10 animate-slide-up relative z-10 transition-all duration-500 pb-6 sm:pb-0">
 
       {/* Header & Tabs */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
@@ -53,7 +54,7 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projects, onProject
 
       {/* Grid */}
       {filteredProjects.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fade-in">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 lg:gap-6 xl:grid-cols-4 xl:gap-6 animate-fade-in min-w-0">
           {filteredProjects.map((project) => (
             <ProjectCard
               key={project.id}
@@ -62,6 +63,7 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projects, onProject
               onDelete={onDeleteProject}
               onRename={onRenameProject}
               onStar={onStarProject}
+              onDuplicate={onDuplicateProject}
             />
           ))}
         </div>

@@ -1,4 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
+import { THEMES, getThemeById } from '../components/InputSection';
 
 // --- Official Google GenAI Model IDs ---
 // Reference: https://ai.google.dev/gemini-api/docs/models
@@ -13,27 +14,33 @@ export interface ModelInfo {
 
 export const AVAILABLE_MODELS: ModelInfo[] = [
     {
-        id: 'gemini-2.0-flash',
-        displayName: 'Gemini 2.0 Flash',
-        description: 'Fast & efficient, great for quick tasks',
+        id: 'gemini-3-flash',
+        displayName: 'Gemini 3 Flash',
+        description: 'أحدث وأسرع نموذج من Google، مثالي للمهام السريعة',
         tier: 'free'
     },
     {
-        id: 'gemini-1.5-flash',
-        displayName: 'Gemini 1.5 Flash',
-        description: 'Balanced speed and quality',
+        id: 'gemini-3-pro',
+        displayName: 'Gemini 3 Pro',
+        description: 'أقوى نموذج احترافي، مثالي للمهام المعقدة والتحليل المتقدم',
+        tier: 'paid'
+    },
+    {
+        id: 'gemini-2.5-flash',
+        displayName: 'Gemini 2.5 Flash',
+        description: 'نموذج متقدم سريع ومتوازن للمهام اليومية',
         tier: 'free'
     },
     {
-        id: 'gemini-1.5-pro',
-        displayName: 'Gemini 1.5 Pro',
-        description: 'Best quality, complex reasoning',
+        id: 'gemini-2.5-pro',
+        displayName: 'Gemini 2.5 Pro',
+        description: 'نموذج احترافي متقدم للتحليل المعقد والمهام المتخصصة',
         tier: 'paid'
     },
 ];
 
 // Default model (most accessible)
-const DEFAULT_MODEL = 'gemini-2.0-flash';
+const DEFAULT_MODEL = 'gemini-3-flash';
 
 // --- Settings Management ---
 
@@ -45,6 +52,11 @@ const getSettings = () => {
         apiKey: localStorage.getItem('lovable_gemini_api_key') || '',
         modelId: localStorage.getItem('lovable_gemini_model') || DEFAULT_MODEL
     };
+};
+
+export const hasValidApiKey = (): boolean => {
+    const { apiKey } = getSettings();
+    return !!apiKey && apiKey.length > 20;
 };
 
 export const saveSettings = (apiKey: string, modelId: string) => {
@@ -186,27 +198,86 @@ export async function* streamIdeaResponse(prompt: string, imageBase64?: string) 
     } catch (error: any) {
         console.error("Error calling Gemini API:", error);
 
+        // Provide user-friendly error messages based on error type
         if (error.message?.includes("API Key")) {
-            yield "⚠️ Please configure your API Key in settings to use AI features.";
+            yield "🔑 **API Key Required**\n\nPlease configure your Gemini API key in Settings to use AI features.\n\n1. Visit [Google AI Studio](https://aistudio.google.com/app/apikey)\n2. Create a new API key\n3. Click Settings in the app and enter your key";
         } else if (error.message?.includes("Daily API quota")) {
-            yield `⚠️ ${error.message}`;
+            yield "📊 **Daily Quota Exceeded**\n\nYou've reached your daily API limit. Options:\n\n• Wait until tomorrow (quota resets daily)\n• Use a different API key\n• Upgrade to a paid plan for higher limits\n• Try again later";
         } else if (error.message?.includes("429") || error.message?.includes("RESOURCE_EXHAUSTED")) {
-            yield "⚠️ Server is busy (Rate Limit). Please wait a moment and try again.";
+            yield "⏳ **Rate Limited**\n\nThe API is temporarily busy. This usually resolves automatically in:\n\n• 1-2 minutes for light usage\n• 5-10 minutes for heavy usage\n\nPlease wait and try again.";
+        } else if (error.message?.includes("network") || error.message?.includes("fetch")) {
+            yield "🌐 **Network Error**\n\nUnable to connect to AI services. Please check:\n\n• Your internet connection\n• Firewall/antivirus settings\n• Try refreshing the page";
+        } else if (error.message?.includes("timeout")) {
+            yield "⏰ **Request Timeout**\n\nThe AI request took too long to complete. This can happen with:\n\n• Complex prompts (try simplifying)\n• Network issues\n• High server load\n\nTry again with a shorter prompt.";
         } else {
-            yield `⚠️ Error: ${error.message || 'Unknown error'}`;
+            yield `❌ **AI Service Error**\n\n${error.message || 'An unexpected error occurred'}\n\nIf this persists:\n• Check your API key is valid\n• Try a different AI model\n• Refresh the page and try again`;
         }
     }
 }
 
+interface VibeIdea {
+    id: string;
+    text: string;
+    category: string;
+    rating: number;
+    savedAt: Date;
+    usedCount: number;
+}
+
+const VIBE_STORAGE_KEY = 'lovable_vibe_ideas';
+
+// Get stored vibe ideas
+const getStoredVibeIdeas = (): VibeIdea[] => {
+    try {
+        const stored = localStorage.getItem(VIBE_STORAGE_KEY);
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            return parsed.map((idea: any) => ({
+                ...idea,
+                savedAt: new Date(idea.savedAt)
+            }));
+        }
+    } catch (error) {
+        console.error('Error loading stored vibe ideas:', error);
+    }
+    return [];
+};
+
+// Save vibe ideas to localStorage
+const saveVibeIdeas = (ideas: VibeIdea[]): void => {
+    try {
+        localStorage.setItem(VIBE_STORAGE_KEY, JSON.stringify(ideas));
+    } catch (error) {
+        console.error('Error saving vibe ideas:', error);
+    }
+};
+
+// Get unique ideas avoiding duplicates
+const getUniqueIdeas = (newIdeas: string[], existingIdeas: VibeIdea[]): string[] => {
+    const existingTexts = new Set(existingIdeas.map(idea => idea.text.toLowerCase().trim()));
+    return newIdeas.filter(idea => !existingTexts.has(idea.toLowerCase().trim()));
+};
+
+// Generate smart vibe ideas with local storage and duplicate avoidance
 export async function generateVibeIdeas(): Promise<string[]> {
     try {
         const { modelId } = getSettings();
         const ai = getAIClient();
 
+        // Get existing ideas to avoid duplicates
+        const existingIdeas = getStoredVibeIdeas();
+        const existingTexts = existingIdeas.map(idea => idea.text.toLowerCase());
+
+        // Create prompt that avoids existing ideas
+        let prompt = "Generate 5 short, distinct, and creative web app ideas for 2025. They should be specific and trendy.";
+        if (existingTexts.length > 0) {
+            prompt += `\n\nAvoid these existing ideas: ${existingTexts.slice(-10).join(', ')}`;
+        }
+
         const response = await withRetry(async () => {
             return await ai.models.generateContent({
                 model: modelId,
-                contents: "Generate 5 short, distinct, and creative web app ideas for 2025. They should be specific and trendy.",
+                contents: prompt,
                 config: {
                     responseMimeType: "application/json",
                     responseSchema: {
@@ -217,39 +288,107 @@ export async function generateVibeIdeas(): Promise<string[]> {
             });
         }, 'VibeIdeas');
 
-        if (response.text) return JSON.parse(response.text);
-        return [];
+        let newIdeas: string[] = [];
+        if (response.text) {
+            newIdeas = JSON.parse(response.text);
+        }
+
+        // Filter out duplicates
+        const uniqueIdeas = getUniqueIdeas(newIdeas, existingIdeas);
+
+        // Save new ideas locally
+        if (uniqueIdeas.length > 0) {
+            const vibeIdeas: VibeIdea[] = [
+                ...existingIdeas,
+                ...uniqueIdeas.map(text => ({
+                    id: crypto.randomUUID(),
+                    text,
+                    category: 'generated',
+                    rating: 0,
+                    savedAt: new Date(),
+                    usedCount: 0
+                }))
+            ];
+            saveVibeIdeas(vibeIdeas);
+        }
+
+        return uniqueIdeas.length > 0 ? uniqueIdeas : newIdeas;
     } catch (error) {
         console.error("Error generating vibes:", error);
-        // Fallback ideas
-        return ["Futuristic Dashboard", "AI Fitness Tracker", "Retro Portfolio", "Crypto Vibe", "Smart Recipe App"];
+        // Smart fallback that considers existing ideas
+        const fallbackIdeas = ["Futuristic Dashboard", "AI Fitness Tracker", "Retro Portfolio", "Crypto Vibe", "Smart Recipe App"];
+        const existingIdeas = getStoredVibeIdeas();
+        const uniqueFallbacks = getUniqueIdeas(fallbackIdeas, existingIdeas);
+
+        return uniqueFallbacks.length > 0 ? uniqueFallbacks : fallbackIdeas;
     }
 }
 
-export async function* streamAppCode(plan: string) {
+// Get all stored vibe ideas
+export const getAllStoredVibeIdeas = (): VibeIdea[] => {
+    return getStoredVibeIdeas();
+};
+
+// Update vibe idea rating
+export const updateVibeIdeaRating = (ideaId: string, rating: number): void => {
+    const ideas = getStoredVibeIdeas();
+    const ideaIndex = ideas.findIndex(idea => idea.id === ideaId);
+
+    if (ideaIndex !== -1) {
+        ideas[ideaIndex].rating = rating;
+        saveVibeIdeas(ideas);
+    }
+};
+
+// Increment usage count
+export const incrementVibeUsage = (ideaText: string): void => {
+    const ideas = getStoredVibeIdeas();
+    const ideaIndex = ideas.findIndex(idea => idea.text === ideaText);
+
+    if (ideaIndex !== -1) {
+        ideas[ideaIndex].usedCount += 1;
+        saveVibeIdeas(ideas);
+    }
+}
+
+export async function* streamAppCode(plan: string, selectedTheme?: string) {
     try {
         const { modelId } = getSettings();
         const ai = getAIClient();
+
+        // Get theme definition if selected
+        const theme = selectedTheme ? getThemeById(selectedTheme) : null;
 
         const response = await withRetry(async () => {
             return await ai.models.generateContentStream({
                 model: modelId,
                 contents: `Create a single-file, fully functional, responsive HTML prototype using Tailwind CSS for the following project plan.
-                
+
                 PLAN:
                 ${plan}
-                
+
+                ${theme ? `DESIGN REQUIREMENTS:
+                - Colors: Primary(${theme.colors.primary}), Secondary(${theme.colors.secondary}), Accent(${theme.colors.accent})
+                - Background: ${theme.colors.background}
+                - Text: ${theme.colors.text}
+                - Typography: ${theme.typography.fontFamily}, ${theme.typography.fontSize}
+                - Spacing: Border Radius(${theme.spacing.borderRadius}), Padding(${theme.spacing.padding})
+                - Animations: ${theme.animations ? 'Include smooth animations and transitions' : 'No animations, clean and minimal design'}
+                - Style Approach: ${theme.name} design theme - apply these colors and styling throughout the application` : ''}
+
                 REQUIREMENTS:
-                1. Use <script src="https://cdn.tailwindcss.com"></script> for styling.
-                2. Use <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"> for icons.
-                3. Use Google Fonts (Inter).
-                4. **IMAGES**: Use https://images.unsplash.com or https://picsum.photos/seed/{keyword}/800/600.
-                5. **DESIGN**: Modern, Glassmorphism, Premium.
-                6. **FUNCTIONALITY**: Write VALID Vanilla JS. All buttons must work. Forms must handle submit.
-                7. **OUTPUT**: Return ONLY raw HTML code. No markdown.
+                1. Create a fully responsive design that works perfectly on mobile, tablet, and desktop.
+                2. Use Tailwind CSS classes extensively for modern, beautiful styling.
+                3. Use <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"> for icons.
+                4. Use Google Fonts (Inter) for typography unless specified otherwise in the design requirements.
+                5. **IMAGES**: Use https://images.unsplash.com or https://picsum.photos/seed/{keyword}/800/600.
+                6. **DESIGN**: Modern, Glassmorphism, Premium, Mobile-first approach.
+                7. **FUNCTIONALITY**: Write VALID Vanilla JS. All buttons must work. Forms must handle submit.
+                8. **MOBILE FOCUS**: Prioritize mobile experience with touch-friendly interfaces.
+                9. **OUTPUT**: Return ONLY raw HTML code. No markdown.
                 `,
                 config: {
-                    systemInstruction: "You are an expert Full Stack Engineer. You write clean, semantic HTML5/Tailwind/JS. You never create static shells; your prototypes are always interactive."
+                    systemInstruction: "You are an expert Full Stack Engineer specializing in mobile-first responsive design. You create beautiful, functional prototypes that work perfectly on mobile devices. Always prioritize mobile UX, use Tailwind CSS extensively for modern styling, and ensure all interactive elements work flawlessly. Focus on clean, semantic HTML5 with excellent mobile performance. When design requirements are provided, strictly follow the specified colors, typography, and spacing guidelines throughout the application."
                 }
             });
         }, 'CodeGeneration');
@@ -261,9 +400,13 @@ export async function* streamAppCode(plan: string) {
         console.error("Error generating code:", error);
 
         if (error.message?.includes("Daily API quota")) {
-            yield `<!-- ${error.message} -->`;
+            yield `<!-- Daily API quota exceeded. Please try again tomorrow or use a different API key. -->`;
+        } else if (error.message?.includes("429") || error.message?.includes("RESOURCE_EXHAUSTED")) {
+            yield "<!-- AI service is temporarily busy. Please wait a moment and try again. -->";
+        } else if (error.message?.includes("API Key")) {
+            yield "<!-- API key not configured. Please set up your Gemini API key in Settings. -->";
         } else {
-            yield "<!-- Error generating code. Please check API Key or Quota. -->";
+            yield `<!-- Error generating code: ${error.message || 'Unknown error'}. Please check your API key and try again. -->`;
         }
     }
 }
